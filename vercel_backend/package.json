@@ -1,0 +1,12 @@
+{
+  "name": "agora-token-service",
+  "version": "1.0.0",
+  "description": "Agora Token Generator for Vercel",
+  "main": "api/index.js",
+  "dependencies": {
+    "agora-token": "^2.0.3",
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "firebase-admin": "^11.0.0"
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "211534063431",
+    "project_id": "calling-app-v2",
+    "storage_bucket": "calling-app-v2.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:211534063431:android:03054d0fc774db966b4e62",
+        "android_client_info": {
+          "package_name": "com.calling.jithin"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD1jx4C4Jwaktoq6juM5MeW7IKbaZl2KfA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
