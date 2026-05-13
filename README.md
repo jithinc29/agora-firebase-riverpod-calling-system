@@ -47,13 +47,24 @@ This project follows **Clean Architecture** principles to ensure maintainability
 - Firebase Account (Blaze Plan for Cloud Functions)
 - Agora Account
 
-### 2. Quick Start
-1. **Clone the repo**: `git clone https://github.com/yourusername/call_project.git`
-2. **Setup Firebase**: Run `flutterfire configure` to generate `lib/firebase_options.dart`.
-3. **Generate Code**: Run `dart run build_runner build --delete-conflicting-outputs`.
-4. **Deploy Backend**: 
-   - Deploy functions: `cd functions && firebase deploy --only functions`.
-   - Setup Agora Webhooks using the deployed `agoraWebhook` URL.
+### 2. Backend Deployment
+
+The project uses a hybrid backend to ensure security and real-time synchronization.
+
+#### A. Vercel (Secure Token Server)
+Used to generate Agora RTC tokens securely without exposing the App Certificate on the client side.
+```powershell
+cd vercel_backend
+vercel --prod --yes
+```
+
+#### B. Firebase Functions (Signaling & Webhooks)
+Handles FCM notifications and Agora webhooks to track call statuses (Join/Leave/End) in real-time.
+```powershell
+cd functions
+firebase deploy --only functions
+```
+*Note: Use the deployed `agoraWebhook` URL in the Agora Console to enable lifecycle tracking.*
 
 ### 3. Build & Run
 ```powershell
