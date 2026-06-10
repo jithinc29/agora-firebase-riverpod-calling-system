@@ -105,6 +105,47 @@ class AuthRepository {
       // 1. Delete user document
       batch.delete(_firestore.collection('users').doc(uid));
 
+      // Remove this user from other users' followers, following, blocked, and pending lists
+      final usersWithFollower = await _firestore
+          .collection('users')
+          .where('followers', arrayContains: uid)
+          .get();
+      for (var doc in usersWithFollower.docs) {
+        batch.update(doc.reference, {
+          'followers': FieldValue.arrayRemove([uid]),
+        });
+      }
+
+      final usersWithFollowing = await _firestore
+          .collection('users')
+          .where('following', arrayContains: uid)
+          .get();
+      for (var doc in usersWithFollowing.docs) {
+        batch.update(doc.reference, {
+          'following': FieldValue.arrayRemove([uid]),
+        });
+      }
+
+      final usersWithBlocked = await _firestore
+          .collection('users')
+          .where('blockedUsers', arrayContains: uid)
+          .get();
+      for (var doc in usersWithBlocked.docs) {
+        batch.update(doc.reference, {
+          'blockedUsers': FieldValue.arrayRemove([uid]),
+        });
+      }
+
+      final usersWithPending = await _firestore
+          .collection('users')
+          .where('pendingFollowRequests', arrayContains: uid)
+          .get();
+      for (var doc in usersWithPending.docs) {
+        batch.update(doc.reference, {
+          'pendingFollowRequests': FieldValue.arrayRemove([uid]),
+        });
+      }
+
       // 2. Delete calls associated with this user (Sender)
       final senderCalls = await _firestore
           .collection('calls')

@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:call_project/features/auth/models/user_model.dart';
@@ -11,16 +12,14 @@ import 'package:call_project/features/call/presentation/screens/call_screen.dart
 import 'package:call_project/core/navigation/navigation_service.dart';
 import 'package:call_project/features/users/presentation/screens/follow_list_screen.dart';
 
-// Unified Design System Colors
 class AppColors {
   static const primary = Color(0xFF6366F1); // Indigo
   static const secondary = Color(0xFFA855F7); // Purple
   static const background = Color(0xFFF8FAFC); // Slate Light
-  static const darkSurface = Color(0xFF0F172A); // Midnight
   static const success = Color(0xFF10B981); // Emerald
   static const error = Color(0xFFEF4444); // Rose
-  static const textPrimary = Color(0xFF1E293B);
-  static const textSecondary = Color(0xFF64748B);
+  static const textPrimary = Color(0xFF0F172A); // Midnight
+  static const textSecondary = Color(0xFF64748B); // Slate Muted
 }
 
 class UserProfileScreen extends ConsumerWidget {
@@ -31,286 +30,302 @@ class UserProfileScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final userAsync = ref.watch(userDetailsProvider(user.uid));
     final currentUserAsync = ref.watch(currentUserDataProvider);
+    final allUsersAsync = ref.watch(allUsersProvider);
 
     return userAsync.when(
       data: (targetUser) {
-        if (targetUser == null)
+        if (targetUser == null) {
           return const Scaffold(body: Center(child: Text('User not found')));
+        }
 
         return currentUserAsync.when(
           data: (currentUser) {
-            if (currentUser == null)
+            if (currentUser == null) {
               return const Scaffold(body: Center(child: Text('Please login')));
+            }
 
-            final isFollowing = currentUser.following.contains(targetUser.uid);
-            final hasRequested = targetUser.pendingFollowRequests.contains(
-              currentUser.uid,
-            );
-            final isBlocked = currentUser.blockedUsers.contains(targetUser.uid);
-            final canInteract =
-                isFollowing && targetUser.following.contains(currentUser.uid);
+            return allUsersAsync.when(
+              data: (allUsers) {
+                final registeredUids = allUsers.map((u) => u.uid).toSet();
+                
+                final activeTargetFollowers = targetUser.followers
+                    .where((uid) => registeredUids.contains(uid))
+                    .toList();
+                final activeTargetFollowing = targetUser.following
+                    .where((uid) => registeredUids.contains(uid))
+                    .toList();
 
-            return Scaffold(
-              backgroundColor: AppColors.background,
-              body: Stack(
-                children: [
-                  // Fixed Curved Header
-                  _buildCurvedHeader(context),
+                final isFollowing = currentUser.following.contains(targetUser.uid);
+                final hasRequested = targetUser.pendingFollowRequests.contains(
+                  currentUser.uid,
+                );
+                final isBlocked = currentUser.blockedUsers.contains(targetUser.uid);
+                final canInteract =
+                    isFollowing && targetUser.following.contains(currentUser.uid);
 
-                  // Scrollable Content
-                  SingleChildScrollView(
+                return Scaffold(
+                  backgroundColor: AppColors.background,
+                  appBar: AppBar(
+                    backgroundColor: Colors.transparent,
+                    elevation: 0,
+                    leading: IconButton(
+                      icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.textPrimary, size: 20),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ),
+                  body: SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                     child: Column(
                       children: [
-                        const SizedBox(
-                          height: 100,
-                        ), // Spacing for avatar positioning
-                        _buildProfileCard(context, targetUser),
-                        const SizedBox(height: 16),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 24),
-                          child: Column(
-                            children: [
-                              _buildStatsRow(context, targetUser, isFollowing),
-                              const SizedBox(height: 20),
-                              if (!isBlocked)
-                                _buildMainActions(
-                                  context,
-                                  ref,
-                                  currentUser,
-                                  targetUser,
-                                  hasRequested,
-                                  isFollowing,
-                                  canInteract,
-                                ),
-                              const SizedBox(height: 20),
-                              _buildDangerZone(
-                                context,
-                                ref,
-                                currentUser.uid,
-                                targetUser.uid,
-                                isBlocked,
-                              ),
-                              const SizedBox(height: 40),
-                            ],
-                          ),
+                        // Compact Profile Header Card
+                        _buildProfileHeaderCard(
+                          context,
+                          ref,
+                          targetUser,
+                          currentUser,
+                          hasRequested,
+                          isFollowing,
+                          activeTargetFollowers,
+                          activeTargetFollowing,
                         ),
+                        const SizedBox(height: 16),
+
+                        // Bento 3: Quick Action Buttons (Chat, Call, Video)
+                        if (!isBlocked) ...[
+                          if (canInteract)
+                            _buildActionsBento(context, ref, currentUser, targetUser)
+                          else
+                            _buildLockedBento(),
+                          const SizedBox(height: 16),
+                        ],
+
+                        // Bento 4: Privacy Settings
+                        _buildPrivacyBento(context, ref, currentUser.uid, targetUser.uid, isBlocked),
+                        const SizedBox(height: 40),
                       ],
                     ),
                   ),
-
-                  // Fixed Back Button
-                  Positioned(
-                    top: MediaQuery.of(context).padding.top + 10,
-                    left: 16,
-                    child: CircleAvatar(
-                      backgroundColor: Colors.black.withValues(alpha: 0.2),
-                      child: IconButton(
-                        icon: const Icon(Icons.arrow_back, color: Colors.white),
-                        onPressed: () => Navigator.pop(context),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+                );
+              },
+              loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
+              error: (e, st) => Scaffold(body: Center(child: Text('Error: $e'))),
             );
           },
-          loading: () =>
-              const Scaffold(body: Center(child: CircularProgressIndicator())),
+          loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
           error: (e, st) => Scaffold(body: Center(child: Text('Error: $e'))),
         );
       },
-      loading: () =>
-          const Scaffold(body: Center(child: CircularProgressIndicator())),
+      loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
       error: (e, st) => Scaffold(body: Center(child: Text('Error: $e'))),
     );
   }
 
-  Widget _buildCurvedHeader(BuildContext context) {
-    return Container(
-      height: 220,
-      width: double.infinity,
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [AppColors.primary, AppColors.secondary],
-        ),
-        borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(50),
-          bottomRight: Radius.circular(50),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildProfileCard(BuildContext context, UserModel user) {
+  Widget _buildProfileHeaderCard(
+    BuildContext context,
+    WidgetRef ref,
+    UserModel targetUser,
+    UserModel currentUser,
+    bool hasRequested,
+    bool isFollowing,
+    List<String> activeFollowers,
+    List<String> activeFollowing,
+  ) {
     final now = DateTime.now();
     final isActuallyOnline =
-        user.isOnline &&
-        user.lastSeen != null &&
-        now.difference(user.lastSeen!).inMinutes < 2;
+        targetUser.isOnline &&
+        targetUser.lastSeen != null &&
+        now.difference(targetUser.lastSeen!).inMinutes < 2;
 
-    return Column(
-      children: [
-        Hero(
-          tag: 'profile_${user.uid}',
-          child: Container(
-            width: 120,
-            height: 120,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(color: Colors.white, width: 4),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.primary.withValues(alpha: 0.2),
-                  blurRadius: 20,
-                  offset: const Offset(0, 10),
-                ),
-              ],
-              image: user.photoUrl != null
-                  ? DecorationImage(
-                      image: NetworkImage(user.photoUrl!),
-                      fit: BoxFit.cover,
-                    )
-                  : null,
-            ),
-            child: user.photoUrl == null
-                ? Container(
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Center(
-                      child: Text(
-                        user.displayName[0].toUpperCase(),
-                        style: const TextStyle(
-                          fontSize: 48,
-                          color: AppColors.primary,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  )
-                : null,
-          ),
-        ),
-        const SizedBox(height: 12),
-        Text(
-          user.displayName,
-          style: const TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-            color: AppColors.textPrimary,
-          ),
-        ),
-        const SizedBox(height: 2),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 8,
-              height: 8,
-              decoration: BoxDecoration(
-                color: isActuallyOnline
-                    ? AppColors.success
-                    : AppColors.textSecondary,
-                shape: BoxShape.circle,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Text(
-              isActuallyOnline ? 'Active now' : _formatLastSeen(user.lastSeen, now),
-              style: TextStyle(
-                color: isActuallyOnline
-                    ? AppColors.success
-                    : AppColors.textSecondary,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildStatsRow(
-    BuildContext context,
-    UserModel user,
-    bool isFollowing,
-  ) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.04)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 15,
-            offset: const Offset(0, 8),
+            color: Colors.black.withValues(alpha: 0.015),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          _buildStatItem(
-            context,
-            'Followers',
-            user.followers.length,
-            user.followers,
-            isFollowing,
-          ),
-          Container(
-            width: 1,
-            height: 30,
-            color: Colors.grey.withValues(alpha: 0.1),
-          ),
-          _buildStatItem(
-            context,
-            'Following',
-            user.following.length,
-            user.following,
-            isFollowing,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatItem(
-    BuildContext context,
-    String label,
-    int count,
-    List<String> uids,
-    bool isFollowing,
-  ) {
-    return GestureDetector(
-      onTap: isFollowing
-          ? () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => FollowListScreen(title: label, uids: uids),
-                ),
-              );
-            }
-          : null,
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            count.toString(),
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: AppColors.textPrimary,
-            ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // Avatar
+              Hero(
+                tag: 'profile_${targetUser.uid}',
+                child: Container(
+                  width: 72,
+                  height: 72,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 2),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.primary.withValues(alpha: 0.1),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                    image: targetUser.photoUrl != null
+                        ? DecorationImage(
+                            image: NetworkImage(targetUser.photoUrl!),
+                            fit: BoxFit.cover,
+                          )
+                        : null,
+                  ),
+                  child: targetUser.photoUrl == null
+                      ? Container(
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withValues(alpha: 0.05),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Center(
+                            child: Text(
+                              targetUser.displayName[0].toUpperCase(),
+                              style: const TextStyle(
+                                fontSize: 26,
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        )
+                      : null,
+                ),
+              ),
+              const SizedBox(width: 16),
+              // User Info Column
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      targetUser.displayName,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            color: isActuallyOnline ? AppColors.success : AppColors.textSecondary.withValues(alpha: 0.5),
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          isActuallyOnline ? 'Active now' : _formatLastSeen(targetUser.lastSeen, now),
+                          style: TextStyle(
+                            color: isActuallyOnline ? AppColors.success : AppColors.textSecondary,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    // Clickable Stats Row (Twitter style)
+                    Row(
+                      children: [
+                        GestureDetector(
+                          onTap: isFollowing
+                              ? () => Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => FollowListScreen(title: 'Followers', uids: activeFollowers),
+                                    ),
+                                  )
+                              : null,
+                          child: RichText(
+                            text: TextSpan(
+                              style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                              children: [
+                                TextSpan(
+                                  text: '${activeFollowers.length} ',
+                                  style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                                ),
+                                const TextSpan(text: 'Followers'),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        const Text('•', style: TextStyle(color: AppColors.textSecondary)),
+                        const SizedBox(width: 10),
+                        GestureDetector(
+                          onTap: isFollowing
+                              ? () => Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => FollowListScreen(title: 'Following', uids: activeFollowing),
+                                    ),
+                                  )
+                              : null,
+                          child: RichText(
+                            text: TextSpan(
+                              style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                              children: [
+                                TextSpan(
+                                  text: '${activeFollowing.length} ',
+                                  style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                                ),
+                                const TextSpan(text: 'Following'),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-          Text(
-            label,
-            style: const TextStyle(
-              color: AppColors.textSecondary,
-              fontSize: 13,
+          const SizedBox(height: 16),
+          // Compact Follow Button inside header card
+          SizedBox(
+            width: double.infinity,
+            height: 44,
+            child: ElevatedButton(
+              onPressed: () => _handleFollow(
+                context,
+                ref,
+                currentUser.uid,
+                targetUser.uid,
+                hasRequested,
+                isFollowing,
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: isFollowing ? Colors.white : AppColors.primary,
+                foregroundColor: isFollowing ? AppColors.primary : Colors.white,
+                elevation: isFollowing ? 0 : 2,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: isFollowing
+                      ? BorderSide(color: AppColors.primary.withValues(alpha: 0.2), width: 1)
+                      : BorderSide.none,
+                ),
+                shadowColor: AppColors.primary.withValues(alpha: 0.1),
+              ),
+              child: Text(
+                isFollowing
+                    ? 'Following'
+                    : (hasRequested ? 'Request Sent' : 'Follow'),
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+              ),
             ),
           ),
         ],
@@ -318,60 +333,46 @@ class UserProfileScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildMainActions(
+  Widget _buildActionsBento(
     BuildContext context,
     WidgetRef ref,
     UserModel currentUser,
     UserModel targetUser,
-    bool hasRequested,
-    bool isFollowing,
-    bool canInteract,
   ) {
-    return Column(
-      children: [
-        SizedBox(
-          width: double.infinity,
-          height: 60,
-          child: ElevatedButton(
-            onPressed: () => _handleFollow(
-              context,
-              ref,
-              currentUser.uid,
-              targetUser.uid,
-              hasRequested,
-              isFollowing,
-            ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: isFollowing ? Colors.white : AppColors.primary,
-              foregroundColor: isFollowing ? AppColors.primary : Colors.white,
-              elevation: isFollowing ? 0 : 8,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-                side: isFollowing
-                    ? BorderSide(color: AppColors.primary.withValues(alpha: 0.2), width: 1)
-                    : BorderSide.none,
-              ),
-              shadowColor: AppColors.primary.withValues(alpha: 0.3),
-            ),
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.04)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.015),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Padding(
+            padding: EdgeInsets.only(left: 4, bottom: 16),
             child: Text(
-              isFollowing
-                  ? 'Following'
-                  : (hasRequested ? 'Request Sent' : 'Follow'),
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+              'QUICK ACTIONS',
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1.1,
+              ),
             ),
           ),
-        ),
-        const SizedBox(height: 24),
-        if (canInteract)
-          GridView.count(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            crossAxisCount: 3,
-            mainAxisSpacing: 16,
-            crossAxisSpacing: 16,
-            childAspectRatio: 1,
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              _buildInteractionItem(
+              _buildInteractionCircle(
                 ref,
                 'Chat',
                 Icons.chat_bubble_rounded,
@@ -387,7 +388,7 @@ class UserProfileScreen extends ConsumerWidget {
                 targetUser.uid,
                 currentUser.uid,
               ),
-              _buildInteractionItem(
+              _buildInteractionCircle(
                 ref,
                 'Call',
                 Icons.phone_rounded,
@@ -398,7 +399,7 @@ class UserProfileScreen extends ConsumerWidget {
                 null,
                 null,
               ),
-              _buildInteractionItem(
+              _buildInteractionCircle(
                 ref,
                 'Video',
                 Icons.videocam_rounded,
@@ -410,40 +411,125 @@ class UserProfileScreen extends ConsumerWidget {
                 null,
               ),
             ],
-          )
-        else
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLockedBento() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.04)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.015),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
           Container(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
               color: AppColors.primary.withValues(alpha: 0.05),
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(
-                color: AppColors.primary.withValues(alpha: 0.1),
-              ),
+              shape: BoxShape.circle,
             ),
-            child: const Row(
+            child: const Icon(Icons.lock_rounded, color: AppColors.primary, size: 20),
+          ),
+          const SizedBox(width: 16),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(Icons.lock_rounded, color: AppColors.primary, size: 24),
-                SizedBox(width: 16),
-                Expanded(
-                  child: Text(
-                    'Follow each other to unlock private chat and calling features.',
-                    style: TextStyle(
-                      color: AppColors.primary,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                      height: 1.4,
-                    ),
+                Text(
+                  'Features Locked',
+                  style: TextStyle(
+                    color: AppColors.textPrimary,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                ),
+                SizedBox(height: 2),
+                Text(
+                  'Follow each other to unlock chat and calls.',
+                  style: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 12,
                   ),
                 ),
               ],
             ),
           ),
-      ],
+        ],
+      ),
     );
   }
 
-  Widget _buildInteractionItem(
+  Widget _buildPrivacyBento(
+    BuildContext context,
+    WidgetRef ref,
+    String currentUid,
+    String targetUid,
+    bool isBlocked,
+  ) {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.04)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.015),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: ListTile(
+          onTap: () => _handleBlock(context, ref, currentUid, targetUid, isBlocked),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+          leading: CircleAvatar(
+            backgroundColor: (isBlocked ? AppColors.primary : AppColors.error).withValues(alpha: 0.08),
+            child: Icon(
+              isBlocked ? Icons.undo_rounded : Icons.block_rounded,
+              color: isBlocked ? AppColors.primary : AppColors.error,
+              size: 18,
+            ),
+          ),
+          title: Text(
+            isBlocked ? 'Unblock User' : 'Block User',
+            style: TextStyle(
+              color: isBlocked ? AppColors.primary : AppColors.error,
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+            ),
+          ),
+          subtitle: const Text(
+            'Manage your interaction with this user',
+            style: TextStyle(fontSize: 11.5, color: AppColors.textSecondary),
+          ),
+          trailing: const Icon(
+            Icons.chevron_right_rounded,
+            color: AppColors.textSecondary,
+            size: 20,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInteractionCircle(
     WidgetRef ref,
     String label,
     IconData icon,
@@ -454,40 +540,43 @@ class UserProfileScreen extends ConsumerWidget {
   ) {
     return GestureDetector(
       onTap: onTap,
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(24),
-          boxShadow: [
-            BoxShadow(
-              color: color.withValues(alpha: 0.08),
-              blurRadius: 15,
-              offset: const Offset(0, 8),
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Stack(
-              clipBehavior: Clip.none,
-              children: [
-                Icon(icon, color: color, size: 28),
-                if (targetId != null && currentId != null)
-                  _buildUnreadBadge(ref, currentId, targetId),
+      child: Column(
+        children: [
+          Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: color.withValues(alpha: 0.12),
+                  blurRadius: 16,
+                  offset: const Offset(0, 8),
+                ),
               ],
             ),
-            const SizedBox(height: 8),
-            Text(
-              label,
-              style: TextStyle(
-                color: color,
-                fontWeight: FontWeight.bold,
-                fontSize: 12,
+            child: Center(
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Icon(icon, color: color, size: 24),
+                  if (targetId != null && currentId != null)
+                    _buildUnreadBadge(ref, currentId, targetId),
+                ],
               ),
             ),
-          ],
-        ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            label,
+            style: const TextStyle(
+              color: AppColors.textPrimary,
+              fontWeight: FontWeight.w600,
+              fontSize: 12,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -525,72 +614,6 @@ class UserProfileScreen extends ConsumerWidget {
           : const SizedBox.shrink(),
       loading: () => const SizedBox.shrink(),
       error: (_, __) => const SizedBox.shrink(),
-    );
-  }
-
-  Widget _buildDangerZone(
-    BuildContext context,
-    WidgetRef ref,
-    String currentUid,
-    String targetUid,
-    bool isBlocked,
-  ) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Padding(
-          padding: EdgeInsets.only(left: 4, bottom: 12),
-          child: Text(
-            'PRIVACY SETTINGS',
-            style: TextStyle(
-              color: AppColors.textSecondary,
-              fontWeight: FontWeight.bold,
-              fontSize: 12,
-              letterSpacing: 1.2,
-            ),
-          ),
-        ),
-        Container(
-          width: double.infinity,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: AppColors.error.withValues(alpha: 0.05)),
-          ),
-          child: ListTile(
-            onTap: () =>
-                _handleBlock(context, ref, currentUid, targetUid, isBlocked),
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 20,
-              vertical: 8,
-            ),
-            leading: CircleAvatar(
-              backgroundColor: (isBlocked ? AppColors.primary : AppColors.error)
-                  .withValues(alpha: 0.1),
-              child: Icon(
-                isBlocked ? Icons.undo_rounded : Icons.block_rounded,
-                color: isBlocked ? AppColors.primary : AppColors.error,
-                size: 20,
-              ),
-            ),
-            title: Text(
-              isBlocked ? 'Unblock User' : 'Block User',
-              style: TextStyle(
-                color: isBlocked ? AppColors.primary : AppColors.error,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            subtitle: const Text(
-              'Manage your interaction with this user',
-              style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
-            ),
-            trailing: const Icon(
-              Icons.chevron_right_rounded,
-              color: AppColors.textSecondary,
-            ),
-          ),
-        ),
-      ],
     );
   }
 
