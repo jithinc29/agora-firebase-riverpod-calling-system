@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:agora_rtc_engine/agora_rtc_engine.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_callkit_incoming/flutter_callkit_incoming.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:call_project/features/call/presentation/controllers/call_controller.dart';
@@ -54,6 +55,7 @@ class _CallScreenState extends ConsumerState<CallScreen> with SingleTickerProvid
   final int _startTime = DateTime.now().millisecondsSinceEpoch;
   late final CallController _controller;
   late AnimationController _pulseController;
+  ProviderSubscription? _callStreamSubscription;
 
   @override
   void initState() {
@@ -79,6 +81,7 @@ class _CallScreenState extends ConsumerState<CallScreen> with SingleTickerProvid
     _timer?.cancel();
     _stopRingtone();
     _pulseController.dispose();
+    _callStreamSubscription?.close();
     _controller.endCall(widget.channelId);
     _audioPlayer.dispose();
     super.dispose();
@@ -192,22 +195,25 @@ class _CallScreenState extends ConsumerState<CallScreen> with SingleTickerProvid
 
     await _controller.joinChannel(widget.channelId, token);
 
-    ref.listenManual(callStreamProvider(widget.channelId), (previous, next) {
-      next.whenData((snapshot) {
-        if (snapshot.exists) {
-          final data = snapshot.data() as Map<String, dynamic>;
-          final rawCreatedAt = data['createdAt'];
-          int createdAt = rawCreatedAt is Timestamp ? rawCreatedAt.millisecondsSinceEpoch : (rawCreatedAt ?? 0);
-          if (createdAt > _startTime - 10000 && (data['status'] == 'ended' || data['status'] == 'timed_out' || data['status'] == 'declined')) {
-            _stopRingtone();
-            final status = data['status'];
-            if (mounted) {
-              setState(() => _statusMessage = status == 'declined' ? "DECLINED" : "DISCONNECTED");
-              Future.delayed(const Duration(seconds: 2), () => Navigator.of(context).pop());
-            }
+    _callStreamSubscription = ref.listenManual<AsyncValue<DocumentSnapshot>>(callStreamProvider(widget.channelId), (previous, next) {
+      final snapshot = next.asData?.value;
+      if (snapshot != null && snapshot.exists) {
+        final data = snapshot.data() as Map<String, dynamic>;
+        final rawCreatedAt = data['createdAt'];
+        int createdAt = rawCreatedAt is Timestamp ? rawCreatedAt.millisecondsSinceEpoch : (rawCreatedAt ?? 0);
+        if (createdAt > _startTime - 10000 && (data['status'] == 'ended' || data['status'] == 'timed_out' || data['status'] == 'declined')) {
+          _stopRingtone();
+          final status = data['status'];
+          if (mounted) {
+            setState(() => _statusMessage = status == 'declined' ? "DECLINED" : "DISCONNECTED");
+            Future.delayed(const Duration(seconds: 2), () {
+              if (mounted) {
+                Navigator.of(context).pop();
+              }
+            });
           }
         }
-      });
+      }
     });
   }
 
@@ -293,7 +299,14 @@ class _CallScreenState extends ConsumerState<CallScreen> with SingleTickerProvid
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(80),
                 child: widget.guestUser.photoUrl != null
-                    ? Image.network(widget.guestUser.photoUrl!, fit: BoxFit.cover)
+                    ? CachedNetworkImage(
+                        imageUrl: widget.guestUser.photoUrl!,
+                        fit: BoxFit.cover,
+                        placeholder: (context, url) => const Center(
+                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                        ),
+                        errorWidget: (context, url, error) => const Icon(Icons.error, color: Colors.white),
+                      )
                     : Container(
                         color: AppColors.primary,
                         child: Center(

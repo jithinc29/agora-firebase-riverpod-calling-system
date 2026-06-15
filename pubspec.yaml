@@ -50,12 +50,18 @@ dependencies:
   shared_preferences: ^2.5.5
   image_picker: ^1.2.2
   firebase_storage: ^13.3.0
+  cached_network_image: ^3.4.1
   intl: ^0.20.2
   record: ^6.2.0
   path_provider: ^2.1.5
   audio_waveforms: ^2.0.2
   just_audio: ^0.10.5
   google_fonts: ^8.1.0
+  video_player: ^2.11.1
+  video_compress: ^3.1.2
+  pro_image_editor: 12.1.0
+  flutter_cache_manager: ^3.4.1
+  visibility_detector: ^0.4.0+2
 
 dev_dependencies:
   flutter_test:

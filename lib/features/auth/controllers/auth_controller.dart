@@ -6,8 +6,14 @@ part 'auth_controller.g.dart';
 
 @riverpod
 class AuthController extends _$AuthController {
+  bool _mounted = true;
+
   @override
   FutureOr<void> build() {
+    _mounted = true;
+    ref.onDispose(() {
+      _mounted = false;
+    });
     // Initial state
   }
 
@@ -22,19 +28,12 @@ class AuthController extends _$AuthController {
     } catch (e) {
       print('FCM Token retrieval failed: $e');
     }
-    
-    // Check if still active after async gap
-    bool isStillMounted = true;
-    try {
-      if (!ref.mounted) isStillMounted = false;
-    } catch (_) {
-      isStillMounted = false;
-    }
-    if (!isStillMounted) return;
-    
-    state = await AsyncValue.guard(
+    final result = await AsyncValue.guard(
       () => ref.read(authRepositoryProvider).signUp(email, password, name, fcmToken),
     );
+    if (_mounted) {
+      state = result;
+    }
   }
 
   Future<void> signIn(String email, String password) async {
@@ -48,18 +47,12 @@ class AuthController extends _$AuthController {
     } catch (e) {
       print('FCM Token retrieval failed during sign in: $e');
     }
-    
-    bool isStillMounted = true;
-    try {
-      if (!ref.mounted) isStillMounted = false;
-    } catch (_) {
-      isStillMounted = false;
-    }
-    if (!isStillMounted) return;
-
-    state = await AsyncValue.guard(
+    final result = await AsyncValue.guard(
       () => ref.read(authRepositoryProvider).signIn(email, password, fcmToken),
     );
+    if (_mounted) {
+      state = result;
+    }
   }
 
   Future<void> signOut() async {
@@ -67,17 +60,13 @@ class AuthController extends _$AuthController {
     final repo = ref.read(authRepositoryProvider);
     try {
       await repo.signOut();
-      try {
-        if (ref.mounted) {
-          state = const AsyncValue.data(null);
-        }
-      } catch (_) {}
+      if (_mounted) {
+        state = const AsyncValue.data(null);
+      }
     } catch (e, st) {
-      try {
-        if (ref.mounted) {
-          state = AsyncValue.error(e, st);
-        }
-      } catch (_) {}
+      if (_mounted) {
+        state = AsyncValue.error(e, st);
+      }
     }
   }
 
@@ -86,17 +75,13 @@ class AuthController extends _$AuthController {
     final repo = ref.read(authRepositoryProvider);
     try {
       await repo.deleteAccount();
-      try {
-        if (ref.mounted) {
-          state = const AsyncValue.data(null);
-        }
-      } catch (_) {}
+      if (_mounted) {
+        state = const AsyncValue.data(null);
+      }
     } catch (e, st) {
-      try {
-        if (ref.mounted) {
-          state = AsyncValue.error(e, st);
-        }
-      } catch (_) {}
+      if (_mounted) {
+        state = AsyncValue.error(e, st);
+      }
     }
   }
 }

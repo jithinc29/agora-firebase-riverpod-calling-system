@@ -1,6 +1,7 @@
 import 'package:call_project/features/auth/repository/auth_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:call_project/features/users/data/repository/user_repository.dart';
 import 'package:call_project/core/providers/firebase_providers.dart';
 
@@ -58,7 +59,7 @@ class BlockListScreen extends ConsumerWidget {
                       leading: CircleAvatar(
                         backgroundColor: Colors.grey.shade100,
                         backgroundImage: blockedUser.photoUrl != null
-                            ? NetworkImage(blockedUser.photoUrl!)
+                            ? CachedNetworkImageProvider(blockedUser.photoUrl!)
                             : null,
                         child: blockedUser.photoUrl == null
                             ? const Icon(Icons.person, color: Colors.grey)

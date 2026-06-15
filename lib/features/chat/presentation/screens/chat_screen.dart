@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:uuid/uuid.dart';
 import 'package:call_project/features/auth/models/user_model.dart';
 import 'package:call_project/features/chat/models/message_model.dart';
@@ -236,7 +237,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final photoUrl = isMe ? ref.read(currentUserDataProvider).asData?.value?.photoUrl : widget.receiver.photoUrl;
     return CircleAvatar(
       radius: 18,
-      backgroundImage: photoUrl != null ? NetworkImage(photoUrl) : null,
+      backgroundImage: photoUrl != null ? CachedNetworkImageProvider(photoUrl) : null,
       child: photoUrl == null ? Text(isMe ? 'Me' : widget.receiver.displayName[0], style: const TextStyle(fontSize: 10)) : null,
     );
   }

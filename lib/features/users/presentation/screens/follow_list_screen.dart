@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:call_project/features/users/data/repository/user_repository.dart';
 import 'package:call_project/features/users/presentation/screens/user_profile_screen.dart';
 
@@ -18,17 +19,40 @@ class FollowListScreen extends ConsumerWidget {
         final activeUids = uids.where((uid) => registeredUids.contains(uid)).toList();
 
         return Scaffold(
-          backgroundColor: const Color(0xFFF8F9FE),
+          backgroundColor: const Color(0xFFF8FAFC), // AppColors.background
           appBar: AppBar(
-            title: Text(title, style: const TextStyle(color: Color(0xFF1A1C1E), fontWeight: FontWeight.bold)),
+            title: Text(
+              title, 
+              style: const TextStyle(
+                color: Color(0xFF0F172A), // AppColors.textPrimary
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
             backgroundColor: Colors.transparent,
             elevation: 0,
-            iconTheme: const IconThemeData(color: Color(0xFF1A1C1E)),
+            centerTitle: true,
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Color(0xFF0F172A), size: 20),
+              onPressed: () => Navigator.pop(context),
+            ),
           ),
           body: activeUids.isEmpty
-              ? Center(child: Text('No users in $title', style: const TextStyle(color: Colors.grey)))
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.people_alt_outlined, size: 48, color: Colors.grey.shade400),
+                      const SizedBox(height: 16),
+                      Text(
+                        'No users in $title', 
+                        style: const TextStyle(color: Color(0xFF64748B), fontSize: 15),
+                      ),
+                    ],
+                  ),
+                )
               : ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                   itemCount: activeUids.length,
                   itemBuilder: (context, index) {
                     final uid = activeUids[index];
@@ -41,41 +65,48 @@ class FollowListScreen extends ConsumerWidget {
                           margin: const EdgeInsets.only(bottom: 12),
                           decoration: BoxDecoration(
                             color: Colors.white,
-                            borderRadius: BorderRadius.circular(15),
+                            borderRadius: BorderRadius.circular(16),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.02),
+                                color: Colors.black.withValues(alpha: 0.03),
                                 blurRadius: 10,
                                 offset: const Offset(0, 4),
                               ),
                             ],
                           ),
                           child: ListTile(
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                             onTap: () {
                               Navigator.push(context, MaterialPageRoute(builder: (_) => UserProfileScreen(user: user)));
                             },
                             leading: CircleAvatar(
-                              radius: 25,
-                              backgroundColor: Colors.purple.shade50,
-                              backgroundImage: user.photoUrl != null ? NetworkImage(user.photoUrl!) : null,
+                              radius: 24,
+                              backgroundColor: const Color(0xFF6366F1).withValues(alpha: 0.1),
+                              backgroundImage: user.photoUrl != null ? CachedNetworkImageProvider(user.photoUrl!) : null,
                               child: user.photoUrl == null
-                                  ? Text(user.displayName[0].toUpperCase(), style: const TextStyle(color: Colors.purple, fontWeight: FontWeight.bold))
+                                  ? Text(
+                                      user.displayName.isNotEmpty ? user.displayName[0].toUpperCase() : '?', 
+                                      style: const TextStyle(color: Color(0xFF6366F1), fontWeight: FontWeight.bold, fontSize: 18),
+                                    )
                                   : null,
                             ),
-                            title: Text(user.displayName, style: const TextStyle(fontWeight: FontWeight.bold)),
-                            trailing: const Icon(Icons.chevron_right, color: Colors.grey),
+                            title: Text(
+                              user.displayName, 
+                              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: Color(0xFF0F172A)),
+                            ),
+                            trailing: const Icon(Icons.arrow_forward_ios_rounded, color: Color(0xFF64748B), size: 14),
                           ),
                         );
                       },
-                      loading: () => const ListTile(title: LinearProgressIndicator()),
-                      error: (e, st) => ListTile(title: Text('Error: $e')),
+                      loading: () => const Center(child: Padding(padding: EdgeInsets.all(8.0), child: CircularProgressIndicator())),
+                      error: (e, st) => const SizedBox.shrink(),
                     );
                   },
                 ),
         );
       },
-      loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
-      error: (e, st) => Scaffold(body: Center(child: Text('Error: $e'))),
+      loading: () => const Scaffold(backgroundColor: Color(0xFFF8FAFC), body: Center(child: CircularProgressIndicator())),
+      error: (e, st) => Scaffold(backgroundColor: const Color(0xFFF8FAFC), body: Center(child: Text('Error: $e'))),
     );
   }
 }

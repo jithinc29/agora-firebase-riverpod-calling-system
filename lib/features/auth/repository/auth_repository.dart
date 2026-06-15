@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:call_project/core/providers/firebase_providers.dart';
 import 'package:call_project/features/auth/models/user_model.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 
 part 'auth_repository.g.dart';
 
@@ -161,6 +162,65 @@ class AuthRepository {
           .where('receiverId', isEqualTo: uid)
           .get();
       for (var doc in receiverCalls.docs) {
+        batch.delete(doc.reference);
+      }
+
+      // 4. Delete posts and their media
+      final userPosts = await _firestore.collection('posts').where('uid', isEqualTo: uid).get();
+      for (var doc in userPosts.docs) {
+        final data = doc.data();
+        final urls = [
+          data['mediaUrl'] as String?,
+          data['videoUrl'] as String?,
+          data['thumbnailUrl'] as String?,
+          data['thumbnail'] as String?
+        ].where((u) => u != null && u.isNotEmpty).toList();
+        
+        for (final url in urls) {
+          try {
+            await FirebaseStorage.instance.refFromURL(url!).delete();
+          } catch (_) {} // Ignore if file already deleted or invalid url
+        }
+        batch.delete(doc.reference);
+      }
+
+      // 5. Delete reels and their media
+      final userReels = await _firestore.collection('reels').where('uid', isEqualTo: uid).get();
+      for (var doc in userReels.docs) {
+        final data = doc.data();
+        final urls = [
+          data['videoUrl'] as String?,
+          data['thumbnail'] as String?
+        ].where((u) => u != null && u.isNotEmpty).toList();
+        
+        for (final url in urls) {
+          try {
+            await FirebaseStorage.instance.refFromURL(url!).delete();
+          } catch (_) {}
+        }
+        batch.delete(doc.reference);
+      }
+
+      // 6. Delete stories and their media
+      final userStories = await _firestore.collection('stories').where('uid', isEqualTo: uid).get();
+      for (var doc in userStories.docs) {
+        final data = doc.data();
+        final imageUrl = data['imageUrl'] as String?;
+        if (imageUrl != null && imageUrl.isNotEmpty) {
+          try {
+            await FirebaseStorage.instance.refFromURL(imageUrl).delete();
+          } catch (_) {}
+        }
+        batch.delete(doc.reference);
+      }
+
+      // 7. Delete chats and their messages
+      final userChats = await _firestore.collection('chats').where('users', arrayContains: uid).get();
+      for (var doc in userChats.docs) {
+        final messages = await doc.reference.collection('messages').get();
+        for (var msg in messages.docs) {
+          batch.delete(msg.reference);
+        }
         batch.delete(doc.reference);
       }
 

@@ -1,42 +1,45 @@
-# 💎 Premium Calling App
-### Real-time Communication with Clean Architecture & Riverpod
+# 📱 Connectify: Premium Social & Calling App
 
-A high-end, production-ready Flutter application delivering seamless **Audio & Video Calling** experiences. Built with a focus on premium UI/UX, robust state management, and scalable cloud infrastructure.
+### A Full-Stack Social App Built with Clean Architecture & Riverpod 🚀
 
----
-
-## 🚀 Key Features
-
-- **⚡ Instant Real-time Calling**: Low-latency Audio and Video communication powered by **Agora RTC**.
-- **🔔 Background CallKit Integration**: Professional background notifications and system-native call screens via **FCM** and **CallKit**.
-- **🟢 Intelligent Presence Logic**: Accurate user status (Active now/Away) using a synchronized 2-minute "last seen" threshold across all profiles.
-- **🎨 Premium UI/UX Design**:
-  - Global typography with **Plus Jakarta Sans**.
-  - A curated **Midnight/Indigo/Slate** color palette.
-  - Responsive, bottom-heavy interaction models optimized for modern mobile displays.
-- **🔒 Secure Authentication**: Robust Email/Password authentication flow integrated with Firebase.
-- **☁️ Scalable Backend**: Automated call lifecycle management (Join/Leave/Terminate) via **Firebase Cloud Functions** and **Vercel** token generation.
+Connectify is a production-ready, feature-rich social media and communication application built in Flutter. It seamlessly combines **Real-time Chat, Video/Audio Calling, and Social Feeds (Posts & Reels)** into a single, premium user experience. Built to impress, this app focuses on robust state management, scalable cloud infrastructure, and top-tier UI/UX design.
 
 ---
 
-## 🏗️ Technical Architecture
+## 🌟 Key Features
 
-This project follows **Clean Architecture** principles to ensure maintainability and testability:
-- **Presentation**: State management with **Riverpod** (Code Generation).
-- **Domain**: Pure business logic with Entities and Repository interfaces.
-- **Data**: Implementation of repositories using Firebase Firestore and Agora.
+### 📞 Real-Time Communication
+- **Instant Audio & Video Calls**: Low-latency, high-quality peer-to-peer communication powered by **Agora RTC**.
+- **Background CallKit Integration**: Native incoming call screens even when the app is killed, using **FCM** and **CallKit**.
+- **Real-Time Chat**: Live messaging system for seamless text-based conversations.
 
-**Core Tech Stack:**
-- **Framework**: Flutter (Dart)
-- **State Management**: Riverpod
-- **Database**: Firebase Firestore
-- **Real-time Audio/Video**: Agora SDK
+### 🌐 Social Network
+- **Dynamic Feeds (Posts & Reels)**: Share photos, short-form videos (Reels), and text updates with the community.
+- **Automated Video Compression**: Built-in, on-device video compression and thumbnail generation to save bandwidth and ensure lightning-fast playback.
+- **Follower System**: Send requests, accept/reject followers, and build your personal network.
+- **Global Presence System**: Accurate "Active Now" or "Last Seen" status synchronized across all screens.
+- **Complete Data Control**: Full account scrub options that recursively wipe users' posts, media, messages, and profiles upon account deletion.
+
+### 🎨 Premium UI/UX
+- **Modern Aesthetics**: Curated Midnight/Indigo color palettes with soft shadows, dynamic layouts, and fluid micro-animations.
+- **Global Typography**: Clean, readable interface using *Plus Jakarta Sans*.
+
+### 🛡️ Robust Architecture & Backend
+- **Clean Architecture**: Strictly layered separation of concerns (Presentation, Domain, Data) ensuring scalability, readability, and testability.
+- **Riverpod State Management**: Reactive, safe, and boilerplate-free global state management.
+- **Scalable Cloud Backend**: Automated media deletion, secure webhook handling, and call lifecycle management via **Firebase Cloud Functions** & **Vercel** token generation.
+
+---
+
+## 🏗️ Technical Stack
+
+- **Frontend**: Flutter (Dart)
+- **State Management**: Riverpod (Code Generation)
+- **Backend/Database**: Firebase Firestore & Firebase Storage
+- **Authentication**: Firebase Auth (Email/Password)
+- **Real-Time Audio/Video**: Agora SDK
 - **Push Notifications**: Firebase Cloud Messaging (FCM)
-
----
-
-## 📸 Screenshots & Demo
-*(Tip: Add high-quality screenshots or a GIF here to WOW recruiters!)*
+- **Token Servers**: Vercel Serverless Functions
 
 ---
 
@@ -44,43 +47,36 @@ This project follows **Clean Architecture** principles to ensure maintainability
 
 ### 1. Requirements
 - Flutter SDK (Latest Stable)
-- Firebase Account (Blaze Plan for Cloud Functions)
-- Agora Account
+- Firebase Project (Blaze Plan required for Cloud Functions)
+- Agora Account (App ID and App Certificate)
 
 ### 2. Backend Deployment
 
-The project uses a hybrid backend to ensure security and real-time synchronization.
-
-#### A. Vercel (Secure Token Server)
-Used to generate Agora RTC tokens securely without exposing the App Certificate on the client side.
+#### A. Vercel (Agora Token Server)
+Tokens are generated securely on Vercel to protect your App Certificate.
 ```powershell
 cd vercel_backend
 vercel --prod --yes
 ```
 
-#### B. Firebase Functions (Signaling & Webhooks)
-Handles FCM notifications and Agora webhooks to track call statuses (Join/Leave/End) in real-time.
+#### B. Firebase Functions
+Handles FCM background notifications and Agora webhook callbacks.
 ```powershell
 cd functions
 firebase deploy --only functions
 ```
-*Note: Use the deployed `agoraWebhook` URL in the Agora Console to enable lifecycle tracking.*
 
 ### 3. Build & Run
 ```powershell
-# For Debug
+flutter clean
+flutter pub get
 flutter run
-
-# For Release APK
-flutter build apk --release
 ```
 
 ---
 
-## 📄 License
-Distributed under the MIT License. See `LICENSE` for more information.
+## 👤 Author
+**Jithin C** 
+- [GitHub Profile](https://github.com/jithinc29)
 
----
-
-## 👤 Contact
-**Jithin C** - [LinkedIn](https://www.linkedin.com/in/your-profile) - [GitHub](https://github.com/your-username)
+*If you're a recruiter looking at this project, feel free to clone it, test it, and reach out! Star ⭐ this repository if you find it helpful!*

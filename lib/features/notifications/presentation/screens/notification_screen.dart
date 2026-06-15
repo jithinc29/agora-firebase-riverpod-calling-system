@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:call_project/features/notifications/data/repository/notification_repository.dart';
 import 'package:call_project/features/notifications/models/notification_model.dart';
 import 'package:call_project/core/providers/firebase_providers.dart';
@@ -183,10 +184,13 @@ class NotificationScreen extends ConsumerWidget {
                               ),
                               child: ClipOval(
                                 child: notification.senderPhotoUrl != null
-                                    ? Image.network(
-                                        notification.senderPhotoUrl!,
+                                    ? CachedNetworkImage(
+                                        imageUrl: notification.senderPhotoUrl!,
                                         fit: BoxFit.cover,
-                                        errorBuilder: (_, __, ___) => Icon(typeIcon, color: typeColor, size: 22),
+                                        placeholder: (context, url) => const Center(
+                                          child: CircularProgressIndicator(strokeWidth: 2),
+                                        ),
+                                        errorWidget: (context, url, error) => Icon(typeIcon, color: typeColor, size: 22),
                                       )
                                     : Center(
                                         child: Icon(
