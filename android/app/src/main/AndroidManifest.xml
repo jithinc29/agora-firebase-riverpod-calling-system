@@ -60,6 +60,12 @@
             </intent-filter>
         </activity>
 
+        <!-- Image Cropper Activity -->
+        <activity
+            android:name="com.yalantis.ucrop.UCropActivity"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.AppCompat.Light.NoActionBar"/>
+
         <!-- CallKit Background Services -->
         <service
             android:name="com.hiennv.flutter_callkit_incoming.CallkitNotificationOnKillService"

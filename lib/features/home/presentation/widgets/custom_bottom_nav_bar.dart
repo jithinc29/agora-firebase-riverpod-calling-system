@@ -92,6 +92,9 @@ class _CustomBottomNavBarState extends State<CustomBottomNavBar>
       alignment: Alignment.bottomCenter,
       clipBehavior: Clip.none,
       children: [
+        // Expand the Stack's bounds so the floating button is fully clickable
+        const SizedBox(height: 100, width: double.infinity),
+        
         // 1. Blur and Dim Overlay when menu is open
         if (widget.isMenuOpen)
           Positioned.fill(

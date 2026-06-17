@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:call_project/core/utils/time_utils.dart';
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -322,8 +323,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
     for (final entry in _reelsControllers.entries) {
       if (entry.key != _activeReelIndex) {
         final c = entry.value;
-        if (c.value.isInitialized && c.value.isPlaying) {
-          c.pause();
+        if (c.value.isInitialized) {
+          if (c.value.isPlaying) c.pause();
+          c.seekTo(Duration.zero);
         }
       }
     }
@@ -526,6 +528,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                             if (entry.value.value.isInitialized && entry.value.value.isPlaying) {
                               entry.value.pause();
                             }
+                          } else {
+                            if (entry.value.value.isInitialized) {
+                              entry.value.seekTo(Duration.zero);
+                              entry.value.play();
+                            }
                           }
                         }
                         _manageReelsControllers();
@@ -539,9 +546,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                       // docs exist. For fresh load it's called by _fetchReelsPage.
 
                     } else {
-                      // Leaving the reels tab — silence ALL controllers immediately
+                      // Leaving the reels tab - silence ALL controllers immediately and reset position
                       for (final c in _reelsControllers.values) {
-                        if (c.value.isInitialized && c.value.isPlaying) c.pause();
+                        if (c.value.isInitialized) {
+                          if (c.value.isPlaying) c.pause();
+                          c.seekTo(Duration.zero);
+                        }
                       }
                     }
                   },
@@ -933,7 +943,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
         final String? photoUrl = data['photoUrl'];
         final String text = data['text'] ?? '';
         final List<dynamic> likes = data['likes'] ?? [];
-        final Timestamp? timestamp = data['timestamp'] as Timestamp?;
+        final int timestampMillis = parseTimestamp(data['timestamp']);
+        final DateTime? timestampDate = timestampMillis > 0 ? DateTime.fromMillisecondsSinceEpoch(timestampMillis) : null;
         final String? type = data['type'];
         final String? mediaUrl = data['mediaUrl'];
         final String? thumbnailUrl = data['thumbnailUrl'];
@@ -942,8 +953,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
     final likeCount = likes.length;
 
     String timeAgo = 'Just now';
-    if (timestamp != null) {
-      final diff = DateTime.now().difference(timestamp.toDate());
+    if (timestampDate != null) {
+      final diff = DateTime.now().difference(timestampDate);
       if (diff.inMinutes < 1) {
         timeAgo = 'Just now';
       } else if (diff.inMinutes < 60) {
@@ -1681,11 +1692,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
     final String displayName = data['displayName'] ?? 'Anonymous';
     final String? photoUrl = data['photoUrl'];
     final String text = data['text'] ?? '';
-    final Timestamp? timestamp = data['timestamp'] as Timestamp?;
+    final int timestampMillis = parseTimestamp(data['timestamp']);
+    final DateTime? timestampDate = timestampMillis > 0 ? DateTime.fromMillisecondsSinceEpoch(timestampMillis) : null;
 
     String timeAgo = 'Just now';
-    if (timestamp != null) {
-      final diff = DateTime.now().difference(timestamp.toDate());
+    if (timestampDate != null) {
+      final diff = DateTime.now().difference(timestampDate);
       if (diff.inMinutes < 1) {
         timeAgo = 'Just now';
       } else if (diff.inMinutes < 60) {
@@ -1844,6 +1856,30 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
   Widget _buildReelsTab(UserModel currentUser) {
     final reels = _getActiveReelsData();
 
+    if (reels.isEmpty) {
+      return const Scaffold(
+        backgroundColor: Colors.black,
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.video_library, color: Colors.white54, size: 48),
+              SizedBox(height: 16),
+              Text(
+                "No reels found",
+                style: TextStyle(color: Colors.white, fontSize: 18),
+              ),
+              SizedBox(height: 8),
+              Text(
+                "Swipe down to refresh",
+                style: TextStyle(color: Colors.white54, fontSize: 14),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     if (reels.isEmpty && _isLoadingReels) {
       return const Scaffold(
         backgroundColor: Colors.black,
@@ -1913,7 +1949,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
           for (var doc in allDocs) {
             final data = doc.data() as Map<String, dynamic>? ?? {};
             final uid = data['uid'] ?? '';
-            final timestamp = (data['timestamp'] as Timestamp?)?.millisecondsSinceEpoch ?? 0;
+            final timestamp = parseTimestamp(data['timestamp']);
             
             // Skip stories older than 24 hours
             if (timestamp > 0 && timestamp < cutoff) continue;
@@ -1934,9 +1970,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
           
           // Sort other users by the timestamp of their newest story (first in their list)
           otherUsersUids.sort((a, b) {
-            final tA = grouped[a]!.first['timestamp'] as Timestamp?;
-            final tB = grouped[b]!.first['timestamp'] as Timestamp?;
-            if (tA == null || tB == null) return 0;
+            final tA = parseTimestamp(grouped[a]!.first['timestamp']);
+            final tB = parseTimestamp(grouped[b]!.first['timestamp']);
             return tB.compareTo(tA);
           });
 
@@ -2459,9 +2494,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
             ),
           ),
         );
-        if (result == true && context.mounted) {
-          ref.read(mediaRefreshProvider.notifier).state++;
-        } else {
+        try {
+          if (result == true && context.mounted) {
+            ref.read(mediaRefreshProvider.notifier).state++;
+          }
+          _resumeActiveReel();
+        } catch (e) {
+          debugPrint("Failed to handle reel upload result: $e");
           _resumeActiveReel();
         }
       }
@@ -3385,7 +3424,7 @@ class _StoryViewerDialogState extends State<StoryViewerDialog>
     final String displayName = firstWithDisplayName['displayName'] ?? 'User';
     final String? photoUrl = firstWithPhoto['photoUrl'];
     
-    final int timestamp = (story['timestamp'] as Timestamp?)?.millisecondsSinceEpoch ?? 0;
+    final int timestamp = parseTimestamp(story['timestamp']);
     String timeAgo = '';
     if (timestamp > 0) {
       final diff = DateTime.now().difference(DateTime.fromMillisecondsSinceEpoch(timestamp));

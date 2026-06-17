@@ -210,11 +210,16 @@ class _ReelUploadScreenState extends State<ReelUploadScreen> {
     );
   }
 
+  bool _isActionRunning = false;
+
   Future<void> _shareReel() async {
+    if (_isActionRunning) return;
+
     final caption = _captionController.text.trim();
     
     setState(() {
       _isUploading = true;
+      _isActionRunning = true;
     });
 
     try {
@@ -251,7 +256,8 @@ class _ReelUploadScreenState extends State<ReelUploadScreen> {
 
       if (mounted) {
         TopNotificationService.showSuccess(context, 'Reel shared successfully!');
-        Navigator.pop(context, true);
+        await Future.delayed(const Duration(seconds: 1));
+        if (mounted) Navigator.pop(context, true);
       }
     } catch (e) {
       debugPrint("Failed to share reel: $e");
@@ -262,6 +268,7 @@ class _ReelUploadScreenState extends State<ReelUploadScreen> {
       if (mounted) {
         setState(() {
           _isUploading = false;
+          _isActionRunning = false;
         });
       }
     }

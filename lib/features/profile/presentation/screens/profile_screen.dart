@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:call_project/core/utils/time_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -820,14 +821,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
     final postsDocs = results[0].docs.toList();
     postsDocs.sort((a, b) {
-      final aTime =
-          ((a.data() as Map<String, dynamic>)['timestamp'] as Timestamp?)
-              ?.millisecondsSinceEpoch ??
-          0;
-      final bTime =
-          ((b.data() as Map<String, dynamic>)['timestamp'] as Timestamp?)
-              ?.millisecondsSinceEpoch ??
-          0;
+      final aTime = parseTimestamp((a.data() as Map<String, dynamic>)['timestamp']);
+      final bTime = parseTimestamp((b.data() as Map<String, dynamic>)['timestamp']);
       return bTime.compareTo(aTime);
     });
     _postsDocs = postsDocs;
@@ -856,8 +851,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     }
 
     allMedia.sort((a, b) {
-      final aTime = (a['timestamp'] as Timestamp?)?.millisecondsSinceEpoch ?? 0;
-      final bTime = (b['timestamp'] as Timestamp?)?.millisecondsSinceEpoch ?? 0;
+      final aTime = parseTimestamp(a['timestamp']);
+      final bTime = parseTimestamp(b['timestamp']);
       return bTime.compareTo(aTime);
     });
 

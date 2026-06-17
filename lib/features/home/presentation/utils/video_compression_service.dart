@@ -4,6 +4,17 @@ import 'package:video_compress/video_compress.dart';
 
 class VideoCompressionService {
   static Future<File> compressVideo(BuildContext context, File videoFile) async {
+    // Get file size in MB
+    final fileSizeInBytes = videoFile.lengthSync();
+    final fileSizeInMb = fileSizeInBytes / (1024 * 1024);
+
+    // If video is already small enough (< 15 MB), skip the slow native compression entirely!
+    // A 3-5 MB video uploads in 1 second, but compressing it takes 30+ seconds.
+    if (fileSizeInMb < 15.0) {
+      debugPrint("🚀 Skipping compression: Video is already small (${fileSizeInMb.toStringAsFixed(2)} MB).");
+      return videoFile;
+    }
+
     // Show a progress dialog
     final ValueNotifier<double> progressNotifier = ValueNotifier<double>(0.0);
     

@@ -1,3 +1,4 @@
+import 'package:call_project/core/utils/time_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -62,7 +63,8 @@ class _FeedPostCardState extends ConsumerState<FeedPostCard> {
         final String? photoUrl = data['photoUrl'];
         final String text = data['text'] ?? data['caption'] ?? '';
         final List<dynamic> likes = data['likes'] ?? [];
-        final Timestamp? timestamp = data['timestamp'] as Timestamp?;
+        final int timestampMillis = parseTimestamp(data['timestamp']);
+        final DateTime? timestampDate = timestampMillis > 0 ? DateTime.fromMillisecondsSinceEpoch(timestampMillis) : null;
         final String? type = data['type'] ?? (data.containsKey('videoUrl') ? 'video' : null);
         final String? mediaUrl = data['mediaUrl'] ?? data['videoUrl'];
         final String? thumbnailUrl = data['thumbnailUrl'] ?? data['thumbnail'];
@@ -71,8 +73,8 @@ class _FeedPostCardState extends ConsumerState<FeedPostCard> {
     final likeCount = likes.length;
 
     String timeAgo = 'Just now';
-    if (timestamp != null) {
-      final diff = DateTime.now().difference(timestamp.toDate());
+    if (timestampDate != null) {
+      final diff = DateTime.now().difference(timestampDate);
       if (diff.inMinutes < 1) {
         timeAgo = 'Just now';
       } else if (diff.inMinutes < 60) {
@@ -809,11 +811,12 @@ class _FeedPostCardState extends ConsumerState<FeedPostCard> {
     final String displayName = data['displayName'] ?? 'Anonymous';
     final String? photoUrl = data['photoUrl'];
     final String text = data['text'] ?? '';
-    final Timestamp? timestamp = data['timestamp'] as Timestamp?;
+    final int timestampMillis = parseTimestamp(data['timestamp']);
+    final DateTime? timestampDate = timestampMillis > 0 ? DateTime.fromMillisecondsSinceEpoch(timestampMillis) : null;
 
     String timeAgo = 'Just now';
-    if (timestamp != null) {
-      final diff = DateTime.now().difference(timestamp.toDate());
+    if (timestampDate != null) {
+      final diff = DateTime.now().difference(timestampDate);
       if (diff.inMinutes < 1) {
         timeAgo = 'Just now';
       } else if (diff.inMinutes < 60) {
