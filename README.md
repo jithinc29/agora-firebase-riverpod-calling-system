@@ -6,6 +6,12 @@ Connectify is a production-ready, feature-rich social media and communication ap
 
 ---
 
+## 📥 Download & Test Now
+If you are a recruiter or developer looking to test the app instantly, download the latest compiled Android APK directly below:
+- **[📥 Download Latest APK (v2.1.0)](https://github.com/jithinc29/agora-firebase-riverpod-calling-system/releases/download/v2.1.0/app-arm64-v8a-release.apk)**
+
+---
+
 ## 🌟 Key Features
 
 ### 📞 Real-Time Communication
