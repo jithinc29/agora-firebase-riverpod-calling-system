@@ -1883,8 +1883,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
     if (reels.isEmpty && _isLoadingReels) {
       return const Scaffold(
         backgroundColor: Colors.black,
-        body: Center(
-          child: CircularProgressIndicator(color: Colors.white),
+        body: const Center(
+          child: RepaintBoundary(
+            child: CircularProgressIndicator(color: Colors.white),
+          ),
         ),
       );
     }
@@ -2827,8 +2829,10 @@ class _ReelsPlayerItemState extends ConsumerState<ReelsPlayerItem> {
                         ),
                       )
                     : const Center(
-                        child: CircularProgressIndicator(
-                          color: Colors.white,
+                        child: RepaintBoundary(
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                          ),
                         ),
                       ),
           ),
@@ -2836,10 +2840,11 @@ class _ReelsPlayerItemState extends ConsumerState<ReelsPlayerItem> {
           // Play/Pause Tap Overlay Indicator
           if (_showPlayPauseOverlay && widget.controller != null)
             Center(
-              child: AnimatedOpacity(
-                duration: const Duration(milliseconds: 200),
-                opacity: _showPlayPauseOverlay ? 1.0 : 0.0,
-                child: Container(
+              child: RepaintBoundary(
+                child: AnimatedOpacity(
+                  duration: const Duration(milliseconds: 200),
+                  opacity: _showPlayPauseOverlay ? 1.0 : 0.0,
+                  child: Container(
                   padding: const EdgeInsets.all(16),
                   decoration: const BoxDecoration(
                     color: Colors.black38,
@@ -3861,7 +3866,9 @@ class _PostVideoPlayerState extends ConsumerState<PostVideoPlayer> with WidgetsB
                 ),
               ),
             const Center(
-              child: CircularProgressIndicator(color: Colors.white),
+              child: RepaintBoundary(
+                child: CircularProgressIndicator(color: Colors.white),
+              ),
             ),
           ],
         ),
@@ -4034,7 +4041,11 @@ class _FullScreenFeedVideoScreenState extends ConsumerState<FullScreenFeedVideoS
                             ],
                           ),
                       )
-                    : const Center(child: CircularProgressIndicator(color: Colors.white)),
+                    : const Center(
+                        child: RepaintBoundary(
+                          child: CircularProgressIndicator(color: Colors.white),
+                        ),
+                      ),
           ),
 
           // Back Button

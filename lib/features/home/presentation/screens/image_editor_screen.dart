@@ -72,7 +72,7 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
         blurEditor: const BlurEditorConfigs(),
         paintEditor: const PaintEditorConfigs(),
         textEditor: const TextEditorConfigs(),
-        emojiEditor: const EmojiEditorConfigs(),
+        emojiEditor: const EmojiEditorConfigs(enabled: false),
         stickerEditor: StickerEditorConfigs(
           builder: (setLayer, scrollController) {
             final List<IconData> stickersList = [
