@@ -71,8 +71,19 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
         filterEditor: const FilterEditorConfigs(),
         blurEditor: const BlurEditorConfigs(),
         paintEditor: const PaintEditorConfigs(),
+        mainEditor: const MainEditorConfigs(
+          tools: [
+            SubEditorMode.paint,
+            SubEditorMode.text,
+            SubEditorMode.cropRotate,
+            SubEditorMode.tune,
+            SubEditorMode.filter,
+            SubEditorMode.blur,
+            SubEditorMode.sticker,
+          ],
+        ),
         textEditor: const TextEditorConfigs(),
-        emojiEditor: const EmojiEditorConfigs(enabled: false),
+        emojiEditor: const EmojiEditorConfigs(),
         stickerEditor: StickerEditorConfigs(
           builder: (setLayer, scrollController) {
             final List<IconData> stickersList = [

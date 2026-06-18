@@ -2860,6 +2860,7 @@ class _ReelsPlayerItemState extends ConsumerState<ReelsPlayerItem> {
                 ),
               ),
             ),
+          ),
 
           // Right Side Action Buttons & Bottom Info overlay
           Positioned(
