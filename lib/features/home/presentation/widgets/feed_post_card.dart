@@ -254,6 +254,7 @@ class _FeedPostCardState extends ConsumerState<FeedPostCard> {
           imageUrl: mediaUrl,
           width: double.infinity,
           fit: BoxFit.cover,
+          fadeInDuration: Duration.zero,
           placeholder: (context, url) => Container(
             height: 200,
             color: Colors.black12,

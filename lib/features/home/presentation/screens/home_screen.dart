@@ -1883,7 +1883,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
     if (reels.isEmpty && _isLoadingReels) {
       return const Scaffold(
         backgroundColor: Colors.black,
-        body: const Center(
+        body: Center(
           child: RepaintBoundary(
             child: CircularProgressIndicator(color: Colors.white),
           ),
