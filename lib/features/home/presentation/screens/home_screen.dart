@@ -86,7 +86,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
   // Indices currently being asynchronously initialised – prevents double-init races
   final Set<int> _reelsInitializing = {};
   // PageController so we can imperatively control the reels PageView
-  late final PageController _reelsPageController;
+  late PageController _reelsPageController;
 
   @override
   void initState() {
@@ -512,16 +512,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                       // Entering Reels tab
 
                       // ── KEY FIX ────────────────────────────────────────────────────────────
-                      // The PageView is recreated every time we return to the Reels tab
-                      // (because the widget is destroyed on tab switch). When a new PageView
-                      // attaches to _reelsPageController, it resets to initialPage:0
-                      // regardless of where we were. We must jump back to _activeReelIndex
-                      // AFTER the frame builds so the PageController has clients.
+                      // Recreate the PageController with the correct initialPage.
+                      // This completely prevents the `PageView` from building `initialPage: 0`
+                      // on the first frame and then jumping to `_activeReelIndex` on the next frame,
+                      // which was causing a massive layout and raster spike (rendering two videos instantly).
+                      _reelsPageController.dispose();
+                      _reelsPageController = PageController(initialPage: _activeReelIndex);
+
                       WidgetsBinding.instance.addPostFrameCallback((_) {
                         if (!mounted) return;
-                        if (_reelsPageController.hasClients) {
-                          _reelsPageController.jumpToPage(_activeReelIndex);
-                        }
                         // After the jump, ensure only the active controller is playing
                         for (final entry in _reelsControllers.entries) {
                           if (entry.key != _activeReelIndex) {
