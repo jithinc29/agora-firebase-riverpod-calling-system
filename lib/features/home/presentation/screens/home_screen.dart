@@ -951,23 +951,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
   }
 
   Widget _buildPostCard(DocumentSnapshot initialPostDoc, UserModel currentUser) {
-    return StreamBuilder<DocumentSnapshot>(
-      stream: initialPostDoc.reference.snapshots(),
-      builder: (context, snapshot) {
-        final postDoc = snapshot.data ?? initialPostDoc;
-        final data = postDoc.data() as Map<String, dynamic>? ?? {};
-        final String displayName = data['displayName'] ?? 'Anonymous';
-        final String? photoUrl = data['photoUrl'];
-        final String text = data['text'] ?? '';
-        final List<dynamic> likes = data['likes'] ?? [];
-        final int timestampMillis = parseTimestamp(data['timestamp']);
-        final DateTime? timestampDate = timestampMillis > 0 ? DateTime.fromMillisecondsSinceEpoch(timestampMillis) : null;
-        final String? type = data['type'];
-        final String? mediaUrl = data['mediaUrl'];
-        final String? thumbnailUrl = data['thumbnailUrl'];
-    
-    final isLiked = likes.contains(currentUser.uid);
-    final likeCount = likes.length;
+    final data = initialPostDoc.data() as Map<String, dynamic>? ?? {};
+    final String displayName = data['displayName'] ?? 'Anonymous';
+    final String? photoUrl = data['photoUrl'];
+    final String text = data['text'] ?? '';
+    final int timestampMillis = parseTimestamp(data['timestamp']);
+    final DateTime? timestampDate = timestampMillis > 0 ? DateTime.fromMillisecondsSinceEpoch(timestampMillis) : null;
+    final String? type = data['type'];
+    final String? mediaUrl = data['mediaUrl'];
+    final String? thumbnailUrl = data['thumbnailUrl'];
 
     String timeAgo = 'Just now';
     if (timestampDate != null) {
@@ -1061,38 +1053,49 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
           // Action Row (Like, Comment, etc) - DIVIDER REMOVED as requested
           Row(
             children: [
-              GestureDetector(
-                onTap: () {
-                  final updatedLikes = List<String>.from(likes);
-                  if (isLiked) {
-                    updatedLikes.remove(currentUser.uid);
-                  } else {
-                    updatedLikes.add(currentUser.uid);
-                  }
-                  postDoc.reference.update({'likes': updatedLikes});
+              StreamBuilder<DocumentSnapshot>(
+                stream: initialPostDoc.reference.snapshots(),
+                builder: (context, snapshot) {
+                  final postDoc = snapshot.data ?? initialPostDoc;
+                  final postData = postDoc.data() as Map<String, dynamic>? ?? {};
+                  final List<dynamic> likes = postData['likes'] ?? [];
+                  final isLiked = likes.contains(currentUser.uid);
+                  final likeCount = likes.length;
+
+                  return GestureDetector(
+                    onTap: () {
+                      final updatedLikes = List<String>.from(likes);
+                      if (isLiked) {
+                        updatedLikes.remove(currentUser.uid);
+                      } else {
+                        updatedLikes.add(currentUser.uid);
+                      }
+                      postDoc.reference.update({'likes': updatedLikes});
+                    },
+                    child: Row(
+                      children: [
+                        Icon(
+                          isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                          color: isLiked ? Colors.red : AppColors.textSecondary,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          '$likeCount',
+                          style: TextStyle(
+                            color: isLiked ? Colors.red : AppColors.textSecondary,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
                 },
-                child: Row(
-                  children: [
-                    Icon(
-                      isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                      color: isLiked ? Colors.red : AppColors.textSecondary,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      '$likeCount',
-                      style: TextStyle(
-                        color: isLiked ? Colors.red : AppColors.textSecondary,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
               ),
               const SizedBox(width: 20),
               GestureDetector(
-                onTap: () => _showCommentsBottomSheet(context, postDoc, currentUser),
+                onTap: () => _showCommentsBottomSheet(context, initialPostDoc, currentUser),
                 behavior: HitTestBehavior.opaque,
                 child: Row(
                   children: [
@@ -1103,7 +1106,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                     ),
                     const SizedBox(width: 4),
                     StreamBuilder<QuerySnapshot>(
-                      stream: postDoc.reference.collection('comments').snapshots(),
+                      stream: initialPostDoc.reference.collection('comments').snapshots(),
                       builder: (context, snapshot) {
                         final count = snapshot.hasData ? snapshot.data!.docs.length : 0;
                         return Text(

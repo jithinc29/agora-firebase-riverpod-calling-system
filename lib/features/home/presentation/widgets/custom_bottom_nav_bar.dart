@@ -104,11 +104,10 @@ class _CustomBottomNavBarState extends State<CustomBottomNavBar>
                 behavior: HitTestBehavior.translucent,
                 child: FadeTransition(
                   opacity: _expandAnimation,
-                  child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 6.0, sigmaY: 6.0),
-                    child: Container(
-                      color: Colors.black.withValues(alpha: 0.4),
-                    ),
+                  child: // Remove BackdropFilter entirely, use this instead:
+                  FadeTransition(
+                    opacity: _expandAnimation,
+                    child: ColoredBox(color: Colors.black54),
                   ),
                 ),
               ),
@@ -321,9 +320,7 @@ class _CustomBottomNavBarState extends State<CustomBottomNavBar>
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(
-                          0xFFEC4899,
-                        ).withValues(alpha: 0.4),
+                        color: const Color(0xFFEC4899).withValues(alpha: 0.4),
                         blurRadius: 16,
                         offset: const Offset(0, 6),
                       ),
@@ -336,10 +333,7 @@ class _CustomBottomNavBarState extends State<CustomBottomNavBar>
                 builder: (context, child) {
                   // Rotates the button 135 degrees (turns "+" into "x")
                   final angle = _animationController.value * math.pi * 0.75;
-                  return Transform.rotate(
-                    angle: angle,
-                    child: child,
-                  );
+                  return Transform.rotate(angle: angle, child: child);
                 },
               ),
             ),
@@ -380,9 +374,7 @@ class _CustomBottomNavBarState extends State<CustomBottomNavBar>
                 ),
               ],
             ),
-            child: Center(
-              child: Icon(icon, color: Colors.white, size: 24),
-            ),
+            child: Center(child: Icon(icon, color: Colors.white, size: 24)),
           ),
         ),
         builder: (context, child) {
@@ -396,10 +388,7 @@ class _CustomBottomNavBarState extends State<CustomBottomNavBar>
 
           return Transform.translate(
             offset: Offset(curDx, curDy),
-            child: Transform.scale(
-              scale: scale,
-              child: child,
-            ),
+            child: Transform.scale(scale: scale, child: child),
           );
         },
       ),
