@@ -81,10 +81,10 @@ class _CustomBottomNavBarState extends State<CustomBottomNavBar>
     // Bubble end offsets relative to the center "+" button
     const double leftBubbleDx = -85.0;
     const double leftBubbleDy = -80.0;
-    
+
     const double middleBubbleDx = 0.0;
     const double middleBubbleDy = -120.0;
-    
+
     const double rightBubbleDx = 85.0;
     const double rightBubbleDy = -80.0;
 
@@ -93,250 +93,259 @@ class _CustomBottomNavBarState extends State<CustomBottomNavBar>
         alignment: Alignment.bottomCenter,
         clipBehavior: Clip.none,
         children: [
-        // Expand the Stack's bounds so the floating button is fully clickable
-        const SizedBox(height: 100, width: double.infinity),
-        
-        // 1. Blur and Dim Overlay when menu is open
-        if (widget.isMenuOpen)
-          Positioned.fill(
-            child: GestureDetector(
-              onTap: _closeMenu,
-              behavior: HitTestBehavior.translucent,
-              child: AnimatedBuilder(
-                animation: _expandAnimation,
-                builder: (context, child) {
-                  final blurVal = _expandAnimation.value * 6.0;
-                  return BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: blurVal, sigmaY: blurVal),
+          // Expand the Stack's bounds so the floating button is fully clickable
+          const SizedBox(height: 100, width: double.infinity),
+
+          // 1. Blur and Dim Overlay when menu is open
+          if (widget.isMenuOpen)
+            Positioned.fill(
+              child: GestureDetector(
+                onTap: _closeMenu,
+                behavior: HitTestBehavior.translucent,
+                child: FadeTransition(
+                  opacity: _expandAnimation,
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 6.0, sigmaY: 6.0),
                     child: Container(
-                      color: Colors.black.withValues(alpha: _expandAnimation.value * 0.4),
+                      color: Colors.black.withValues(alpha: 0.4),
                     ),
-                  );
-                },
+                  ),
+                ),
+              ),
+            ),
+
+          // 2. Liquid Gooey Connections (Drawn behind bubbles but in front of overlay)
+          if (widget.isMenuOpen)
+            Positioned(
+              bottom: 56, // Center aligned with the floating "+" notch
+              child: IgnorePointer(
+                child: AnimatedBuilder(
+                  animation: _expandAnimation,
+                  builder: (context, child) {
+                    return CustomPaint(
+                      size: const Size(300, 200),
+                      painter: GooeyBridgePainter(
+                        progress: _expandAnimation.value,
+                        leftBubbleTarget: const Offset(
+                          leftBubbleDx,
+                          leftBubbleDy,
+                        ),
+                        middleBubbleTarget: const Offset(
+                          middleBubbleDx,
+                          middleBubbleDy,
+                        ),
+                        rightBubbleTarget: const Offset(
+                          rightBubbleDx,
+                          rightBubbleDy,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+
+          // 3. Popping Bubbles (Animated Positions)
+          _buildBubble(
+            icon: Icons.add_photo_alternate_rounded, // Post
+            dx: leftBubbleDx,
+            dy: leftBubbleDy,
+            onTap: () {
+              _closeMenu();
+              widget.onCreatePostTap();
+            },
+          ),
+          _buildBubble(
+            icon: Icons.movie_creation_rounded, // Reel
+            dx: middleBubbleDx,
+            dy: middleBubbleDy,
+            onTap: () {
+              _closeMenu();
+              widget.onCreateReelTap();
+            },
+          ),
+          _buildBubble(
+            icon: Icons.add_circle_outline_rounded, // Story
+            dx: rightBubbleDx,
+            dy: rightBubbleDy,
+            onTap: () {
+              _closeMenu();
+              widget.onCreateStoryTap();
+            },
+          ),
+
+          // 4. Custom Floating Bottom Bar Container
+          Padding(
+            padding: const EdgeInsets.only(left: 20, right: 20, bottom: 8),
+            child: CustomPaint(
+              size: const Size(double.infinity, 56),
+              painter: BottomBarShadowPainter(),
+              child: ClipPath(
+                clipper: BottomBarClipper(),
+                child: Container(
+                  height: 56,
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Color(0xFF2E2252), Color(0xFF1E143F)],
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      // Tab 0: Feeds / Home
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () {
+                            _closeMenu();
+                            widget.onTap(0);
+                          },
+                          behavior: HitTestBehavior.opaque,
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                widget.currentIndex == 0
+                                    ? Icons.home
+                                    : Icons.home_outlined,
+                                color: widget.currentIndex == 0
+                                    ? Colors.white
+                                    : Colors.white.withValues(alpha: 0.4),
+                                size: 24,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      // Tab 1: Chats
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () {
+                            _closeMenu();
+                            widget.onTap(1);
+                          },
+                          behavior: HitTestBehavior.opaque,
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                widget.currentIndex == 1
+                                    ? Icons.chat_bubble
+                                    : Icons.chat_bubble_outline,
+                                color: widget.currentIndex == 1
+                                    ? Colors.white
+                                    : Colors.white.withValues(alpha: 0.4),
+                                size: 24,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      // Notch Spacer
+                      const SizedBox(width: 80),
+                      // Tab 2: Reels / Video Clips
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () {
+                            _closeMenu();
+                            widget.onTap(2);
+                          },
+                          behavior: HitTestBehavior.opaque,
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                widget.currentIndex == 2
+                                    ? Icons.play_circle
+                                    : Icons.play_circle_outline,
+                                color: widget.currentIndex == 2
+                                    ? Colors.white
+                                    : Colors.white.withValues(alpha: 0.4),
+                                size: 24,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      // Tab 3: Profile / Settings
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () {
+                            _closeMenu();
+                            widget.onTap(3);
+                          },
+                          behavior: HitTestBehavior.opaque,
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                widget.currentIndex == 3
+                                    ? Icons.person
+                                    : Icons.person_outline,
+                                color: widget.currentIndex == 3
+                                    ? Colors.white
+                                    : Colors.white.withValues(alpha: 0.4),
+                                size: 24,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
           ),
 
-        // 2. Liquid Gooey Connections (Drawn behind bubbles but in front of overlay)
-        if (widget.isMenuOpen)
+          // 5. Central Floating "+" Button Nestled in notch
           Positioned(
-            bottom: 56, // Center aligned with the floating "+" notch
-            child: IgnorePointer(
+            bottom: 30,
+            child: GestureDetector(
+              onTap: _toggleMenu,
               child: AnimatedBuilder(
-                animation: _expandAnimation,
-                builder: (context, child) {
-                  return CustomPaint(
-                    size: const Size(300, 200),
-                    painter: GooeyBridgePainter(
-                      progress: _expandAnimation.value,
-                      leftBubbleTarget: const Offset(leftBubbleDx, leftBubbleDy),
-                      middleBubbleTarget: const Offset(middleBubbleDx, middleBubbleDy),
-                      rightBubbleTarget: const Offset(rightBubbleDx, rightBubbleDy),
+                animation: _animationController,
+                child: Container(
+                  width: 64,
+                  height: 64,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: const LinearGradient(
+                      colors: [
+                        Color(0xFFF43F5E),
+                        Color(0xFFEC4899),
+                      ], // Hot pink gradient
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
                     ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(
+                          0xFFEC4899,
+                        ).withValues(alpha: 0.4),
+                        blurRadius: 16,
+                        offset: const Offset(0, 6),
+                      ),
+                    ],
+                  ),
+                  child: const Center(
+                    child: Icon(Icons.add, color: Colors.white, size: 32),
+                  ),
+                ),
+                builder: (context, child) {
+                  // Rotates the button 135 degrees (turns "+" into "x")
+                  final angle = _animationController.value * math.pi * 0.75;
+                  return Transform.rotate(
+                    angle: angle,
+                    child: child,
                   );
                 },
               ),
             ),
           ),
-
-        // 3. Popping Bubbles (Animated Positions)
-        _buildBubble(
-          icon: Icons.add_photo_alternate_rounded, // Post
-          dx: leftBubbleDx,
-          dy: leftBubbleDy,
-          onTap: () {
-            _closeMenu();
-            widget.onCreatePostTap();
-          },
-        ),
-        _buildBubble(
-          icon: Icons.movie_creation_rounded, // Reel
-          dx: middleBubbleDx,
-          dy: middleBubbleDy,
-          onTap: () {
-            _closeMenu();
-            widget.onCreateReelTap();
-          },
-        ),
-        _buildBubble(
-          icon: Icons.add_circle_outline_rounded, // Story
-          dx: rightBubbleDx,
-          dy: rightBubbleDy,
-          onTap: () {
-            _closeMenu();
-            widget.onCreateStoryTap();
-          },
-        ),
-
-        // 4. Custom Floating Bottom Bar Container
-        Padding(
-          padding: const EdgeInsets.only(left: 20, right: 20, bottom: 8),
-          child: CustomPaint(
-            size: const Size(double.infinity, 56),
-            painter: BottomBarShadowPainter(),
-            child: ClipPath(
-              clipper: BottomBarClipper(),
-              child: Container(
-                height: 56,
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [Color(0xFF2E2252), Color(0xFF1E143F)],
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                  ),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    // Tab 0: Feeds / Home
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () {
-                          _closeMenu();
-                          widget.onTap(0);
-                        },
-                        behavior: HitTestBehavior.opaque,
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              widget.currentIndex == 0
-                                  ? Icons.home
-                                  : Icons.home_outlined,
-                              color: widget.currentIndex == 0
-                                  ? Colors.white
-                                  : Colors.white.withValues(alpha: 0.4),
-                              size: 24,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    // Tab 1: Chats
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () {
-                          _closeMenu();
-                          widget.onTap(1);
-                        },
-                        behavior: HitTestBehavior.opaque,
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              widget.currentIndex == 1
-                                  ? Icons.chat_bubble
-                                  : Icons.chat_bubble_outline,
-                              color: widget.currentIndex == 1
-                                  ? Colors.white
-                                  : Colors.white.withValues(alpha: 0.4),
-                              size: 24,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    // Notch Spacer
-                    const SizedBox(width: 80),
-                    // Tab 2: Reels / Video Clips
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () {
-                          _closeMenu();
-                          widget.onTap(2);
-                        },
-                        behavior: HitTestBehavior.opaque,
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              widget.currentIndex == 2
-                                  ? Icons.play_circle
-                                  : Icons.play_circle_outline,
-                              color: widget.currentIndex == 2
-                                  ? Colors.white
-                                  : Colors.white.withValues(alpha: 0.4),
-                              size: 24,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    // Tab 3: Profile / Settings
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () {
-                          _closeMenu();
-                          widget.onTap(3);
-                        },
-                        behavior: HitTestBehavior.opaque,
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              widget.currentIndex == 3
-                                  ? Icons.person
-                                  : Icons.person_outline,
-                              color: widget.currentIndex == 3
-                                  ? Colors.white
-                                  : Colors.white.withValues(alpha: 0.4),
-                              size: 24,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-
-        // 5. Central Floating "+" Button Nestled in notch
-        Positioned(
-          bottom: 30,
-          child: GestureDetector(
-            onTap: _toggleMenu,
-            child: AnimatedBuilder(
-              animation: _animationController,
-              builder: (context, child) {
-                // Rotates the button 135 degrees (turns "+" into "x")
-                final angle = _animationController.value * math.pi * 0.75;
-                return Transform.rotate(
-                  angle: angle,
-                  child: Container(
-                    width: 64,
-                    height: 64,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFFF43F5E), Color(0xFFEC4899)], // Hot pink gradient
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFFEC4899).withValues(alpha: 0.4),
-                          blurRadius: 16,
-                          offset: const Offset(0, 6),
-                        ),
-                      ],
-                    ),
-                    child: const Center(
-                      child: Icon(
-                        Icons.add,
-                        color: Colors.white,
-                        size: 32,
-                      ),
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -351,6 +360,31 @@ class _CustomBottomNavBarState extends State<CustomBottomNavBar>
       bottom: 58, // Origin center aligned with notch center
       child: AnimatedBuilder(
         animation: _expandAnimation,
+        child: GestureDetector(
+          onTap: onTap,
+          child: Container(
+            width: 54,
+            height: 54,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: const LinearGradient(
+                colors: [Color(0xFFF43F5E), Color(0xFFEC4899)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFFEC4899).withValues(alpha: 0.35),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Center(
+              child: Icon(icon, color: Colors.white, size: 24),
+            ),
+          ),
+        ),
         builder: (context, child) {
           final t = _expandAnimation.value;
           // Calculate scale and position offset
@@ -364,35 +398,7 @@ class _CustomBottomNavBarState extends State<CustomBottomNavBar>
             offset: Offset(curDx, curDy),
             child: Transform.scale(
               scale: scale,
-              child: GestureDetector(
-                onTap: onTap,
-                child: Container(
-                  width: 54,
-                  height: 54,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFFF43F5E), Color(0xFFEC4899)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFFEC4899).withValues(alpha: 0.35),
-                        blurRadius: 12,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Center(
-                    child: Icon(
-                      icon,
-                      color: Colors.white,
-                      size: 24,
-                    ),
-                  ),
-                ),
-              ),
+              child: child,
             ),
           );
         },
@@ -421,16 +427,8 @@ class BottomBarClipper extends CustomClipper<Path> {
 
     // Smooth bezier notch
     final double notchCenter = w / 2;
-    path.cubicTo(
-      notchCenter - 28, 0,
-      notchCenter - 34, 40,
-      notchCenter, 40,
-    );
-    path.cubicTo(
-      notchCenter + 34, 40,
-      notchCenter + 28, 0,
-      w / 2 + 58, 0,
-    );
+    path.cubicTo(notchCenter - 28, 0, notchCenter - 34, 40, notchCenter, 40);
+    path.cubicTo(notchCenter + 34, 40, notchCenter + 28, 0, w / 2 + 58, 0);
 
     // Top right rounded corner
     path.lineTo(w - 28, 0);
@@ -461,12 +459,7 @@ class BottomBarShadowPainter extends CustomPainter {
     final clipper = BottomBarClipper();
     final path = clipper.getClip(size);
 
-    canvas.drawShadow(
-      path,
-      const Color(0xFF0F172A),
-      14,
-      false,
-    );
+    canvas.drawShadow(path, const Color(0xFF0F172A), 14, false);
   }
 
   @override
@@ -507,9 +500,33 @@ class GooeyBridgePainter extends CustomPainter {
     const double rCenter = 30.0;
     const double rBubble = 22.0;
 
-    _drawGooeyBridge(canvas, paint, const Offset(0, 0), leftBubbleTarget * progress, rCenter, rBubble, bridgeT);
-    _drawGooeyBridge(canvas, paint, const Offset(0, 0), middleBubbleTarget * progress, rCenter, rBubble, bridgeT);
-    _drawGooeyBridge(canvas, paint, const Offset(0, 0), rightBubbleTarget * progress, rCenter, rBubble, bridgeT);
+    _drawGooeyBridge(
+      canvas,
+      paint,
+      const Offset(0, 0),
+      leftBubbleTarget * progress,
+      rCenter,
+      rBubble,
+      bridgeT,
+    );
+    _drawGooeyBridge(
+      canvas,
+      paint,
+      const Offset(0, 0),
+      middleBubbleTarget * progress,
+      rCenter,
+      rBubble,
+      bridgeT,
+    );
+    _drawGooeyBridge(
+      canvas,
+      paint,
+      const Offset(0, 0),
+      rightBubbleTarget * progress,
+      rCenter,
+      rBubble,
+      bridgeT,
+    );
   }
 
   void _drawGooeyBridge(
@@ -553,8 +570,14 @@ class GooeyBridgePainter extends CustomPainter {
 
     // Inward control points to create liquid stretching neck effect
     final double pullBack = dist * 0.16 * t;
-    final Offset ctrl1 = Offset(mid1.dx - pullBack * ux, mid1.dy - pullBack * uy);
-    final Offset ctrl2 = Offset(mid2.dx - pullBack * ux, mid2.dy - pullBack * uy);
+    final Offset ctrl1 = Offset(
+      mid1.dx - pullBack * ux,
+      mid1.dy - pullBack * uy,
+    );
+    final Offset ctrl2 = Offset(
+      mid2.dx - pullBack * ux,
+      mid2.dy - pullBack * uy,
+    );
 
     final Path path = Path()
       ..moveTo(pA1.dx, pA1.dy)
