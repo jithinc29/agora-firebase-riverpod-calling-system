@@ -88,10 +88,11 @@ class _CustomBottomNavBarState extends State<CustomBottomNavBar>
     const double rightBubbleDx = 85.0;
     const double rightBubbleDy = -80.0;
 
-    return Stack(
-      alignment: Alignment.bottomCenter,
-      clipBehavior: Clip.none,
-      children: [
+    return RepaintBoundary(
+      child: Stack(
+        alignment: Alignment.bottomCenter,
+        clipBehavior: Clip.none,
+        children: [
         // Expand the Stack's bounds so the floating button is fully clickable
         const SizedBox(height: 100, width: double.infinity),
         

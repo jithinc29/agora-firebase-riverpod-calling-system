@@ -498,11 +498,29 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                     setState(() {
                       _isMenuOpen = !_isMenuOpen;
                     });
+                    
+                    if (_currentTabIndex == 2) {
+                      final controller = _reelsControllers[_activeReelIndex];
+                      if (controller != null && controller.value.isInitialized) {
+                        if (_isMenuOpen) {
+                          controller.pause();
+                        } else {
+                          controller.play();
+                        }
+                      }
+                    }
                   },
                   onMenuClose: () {
                     setState(() {
                       _isMenuOpen = false;
                     });
+                    
+                    if (_currentTabIndex == 2) {
+                      final controller = _reelsControllers[_activeReelIndex];
+                      if (controller != null && controller.value.isInitialized) {
+                        controller.play();
+                      }
+                    }
                   },
                   onTap: (index) {
                     setState(() {
