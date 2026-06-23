@@ -41,7 +41,7 @@ final class CallControllerProvider
   }
 }
 
-String _$callControllerHash() => r'50619c236c9f7a2534cce174583cdeb73f374ef6';
+String _$callControllerHash() => r'ac2377d784ecfb63905e731fce6aaba28dacc18b';
 
 abstract class _$CallController extends $Notifier<void> {
   void build();

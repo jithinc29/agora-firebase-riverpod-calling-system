@@ -128,7 +128,7 @@ class _FeedPostCardState extends ConsumerState<FeedPostCard> {
                 ),
               ),
               IconButton(
-                onPressed: () => _showPostOptionsMenu(context, postDoc, currentUser.uid),
+                onPressed: () => _showPostOptionsMenu(context, initialPostDoc, currentUser.uid),
                 icon: const Icon(Icons.more_horiz_rounded, color: AppColors.textSecondary),
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
@@ -228,7 +228,7 @@ class _FeedPostCardState extends ConsumerState<FeedPostCard> {
               const Spacer(),
               IconButton(
                 onPressed: () {
-                  final link = 'https://callingapp.page.link/post/${postDoc.id}';
+                  final link = 'https://callingapp.page.link/post/${initialPostDoc.id}';
                   Clipboard.setData(ClipboardData(text: link));
                   TopNotificationService.showSuccess(context, 'Post link copied to clipboard!');
                 },
@@ -245,8 +245,6 @@ class _FeedPostCardState extends ConsumerState<FeedPostCard> {
         ],
       ),
     );
-      },
-    );
   }
 
   Widget _buildPostCardMedia(String? type, String mediaUrl, String? thumbnailUrl) {
@@ -258,22 +256,19 @@ class _FeedPostCardState extends ConsumerState<FeedPostCard> {
           width: double.infinity,
           fit: BoxFit.cover,
           fadeInDuration: Duration.zero,
-          placeholder: (context, url) => Container(
-            height: 200,
-            color: Colors.black12,
-            child: const Center(
-              child: SizedBox(
-                width: 24,
-                height: 24,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
+          placeholder: (context, url) => AspectRatio(
+            aspectRatio: 1.0,
+            child: Container(
+              color: Colors.black12,
             ),
           ),
-          errorWidget: (context, url, error) => Container(
-            height: 200,
-            color: Colors.black12,
-            child: const Center(
-              child: Icon(Icons.broken_image, color: Colors.grey),
+          errorWidget: (context, url, error) => AspectRatio(
+            aspectRatio: 1.0,
+            child: Container(
+              color: Colors.black12,
+              child: const Center(
+                child: Icon(Icons.broken_image, color: Colors.grey),
+              ),
             ),
           ),
         ),
@@ -330,17 +325,41 @@ class _FeedPostCardState extends ConsumerState<FeedPostCard> {
                     _confirmDeletePost(outerContext, postDoc); // use outer context for dialog
                   },
                 ),
-              ListTile(
-                leading: const Icon(Icons.visibility_off_outlined, color: AppColors.textPrimary),
-                title: const Text('Hide Post', style: TextStyle(color: AppColors.textPrimary)),
-                onTap: () {
-                  Navigator.pop(sheetContext);
-                  if (widget.onPostHidden != null) widget.onPostHidden!();
-                  if (outerContext.mounted) {
-                    TopNotificationService.showSuccess(outerContext, 'Post hidden');
-                  }
-                },
-              ),
+              if (isOwner)
+                ListTile(
+                  leading: Icon(
+                    data['isHidden'] == true ? Icons.visibility_rounded : Icons.visibility_off_outlined, 
+                    color: AppColors.textPrimary
+                  ),
+                  title: Text(
+                    data['isHidden'] == true ? 'Unhide Post' : 'Archive Post', 
+                    style: const TextStyle(color: AppColors.textPrimary)
+                  ),
+                  onTap: () async {
+                    Navigator.pop(sheetContext);
+                    final bool isHidden = data['isHidden'] == true;
+                    await postDoc.reference.update({'isHidden': !isHidden});
+                    ref.read(mediaRefreshProvider.notifier).state++;
+                    if (outerContext.mounted) {
+                      TopNotificationService.showSuccess(
+                        outerContext, 
+                        isHidden ? 'Post unhidden and visible in feed' : 'Post archived to your profile'
+                      );
+                    }
+                  },
+                )
+              else
+                ListTile(
+                  leading: const Icon(Icons.visibility_off_outlined, color: AppColors.textPrimary),
+                  title: const Text('Hide Post', style: TextStyle(color: AppColors.textPrimary)),
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    if (widget.onPostHidden != null) widget.onPostHidden!();
+                    if (outerContext.mounted) {
+                      TopNotificationService.showSuccess(outerContext, 'Post hidden');
+                    }
+                  },
+                ),
               const SizedBox(height: 12),
             ],
           ),

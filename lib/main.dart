@@ -86,7 +86,7 @@ class MyApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final currentUserData = ref.watch(currentUserDataProvider);
+    final authState = ref.watch(authStateChangesProvider);
 
     return MaterialApp(
       navigatorKey: navigatorKey,
@@ -101,7 +101,7 @@ class MyApp extends ConsumerWidget {
           ThemeData.light().textTheme,
         ),
       ),
-      home: currentUserData.when(
+      home: authState.when(
         data: (user) {
           if (user != null) {
             return const CallListener(child: HomeScreen());

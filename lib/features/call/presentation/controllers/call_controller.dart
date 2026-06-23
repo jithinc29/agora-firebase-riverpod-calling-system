@@ -82,12 +82,13 @@ class CallController extends _$CallController {
     required String? receiverName,
     required String receiverToken,
     bool isAudioCall = false,
+    String? channelId,
     BuildContext? context,
   }) async {
     // Shorten channelId to stay under Agora's 64-char limit (UIDs are 28 chars each)
     final shortSenderId = senderId.substring(0, 10);
     final shortReceiverId = receiverId.substring(0, 10);
-    final channelId =
+    final generatedChannelId = channelId ??
         "${shortSenderId}_${shortReceiverId}_${DateTime.now().millisecondsSinceEpoch}";
 
     final call = CallEntity(
@@ -95,7 +96,7 @@ class CallController extends _$CallController {
       callerName: senderName,
       receiverId: receiverId,
       receiverName: receiverName ?? 'Unknown',
-      channelId: channelId,
+      channelId: generatedChannelId,
       isAudioCall: isAudioCall,
     );
 
@@ -104,7 +105,7 @@ class CallController extends _$CallController {
       'callerName': senderName,
       'receiverId': receiverId,
       'receiverName': receiverName ?? 'Unknown',
-      'channelId': channelId,
+      'channelId': generatedChannelId,
       'status': 'dialing',
       'isAudioCall': isAudioCall.toString(),
       'receiverToken': receiverToken,
@@ -118,7 +119,7 @@ class CallController extends _$CallController {
       await ref.read(callRepositoryProvider).makeCall(call);
 
       // 2. Return the channelId IMMEDIATELY so the UI can navigate
-      return channelId;
+      return generatedChannelId;
     } catch (e) {
       debugPrint('Error in makeCall process: $e');
       if (context != null && context.mounted) {

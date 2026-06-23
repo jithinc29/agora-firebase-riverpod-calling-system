@@ -81,16 +81,12 @@ class CallRepository {
         'receiverToken': receiverToken,
       };
 
-      debugPrint('DEBUG: Sending signaling payload to Vercel in parallel: $payload');
-      
       final Future<void> vercelFuture = http.post(
         Uri.parse('${AgoraConfig.tokenBaseUrl}/api/initiate_call'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode(payload),
       ).timeout(const Duration(seconds: 15)).then((response) {
-         debugPrint('DEBUG: Vercel signaling response: ${response.statusCode}');
       }).catchError((e) {
-         debugPrint('DEBUG: Vercel signaling FAILED: $e');
       });
 
       // Wait for both to complete
@@ -181,7 +177,6 @@ class CallRepository {
             'receiverToken': receiverToken,
           };
           
-          debugPrint('DEBUG: Sending $status signal to Vercel for dismissal...');
           http.post(
             Uri.parse('${AgoraConfig.tokenBaseUrl}/api/initiate_call'),
             headers: {'Content-Type': 'application/json'},

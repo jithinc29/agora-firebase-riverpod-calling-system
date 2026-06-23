@@ -86,9 +86,9 @@ class _CallListenerState extends ConsumerState<CallListener> {
 
       await Navigator.push(
         context,
-        MaterialPageRoute(
+        PageRouteBuilder(
           settings: const RouteSettings(name: '/call_screen'),
-          builder: (_) => CallScreen(
+          pageBuilder: (_, __, ___) => CallScreen(
             channelId: channelId,
             guestUser: UserModel(
               uid: extra?['callerId'] ?? '',
@@ -98,6 +98,8 @@ class _CallListenerState extends ConsumerState<CallListener> {
             isAudioCall: data['type'].toString() == '0',
             isOutgoing: false,
           ),
+          transitionDuration: Duration.zero,
+          reverseTransitionDuration: Duration.zero,
         ),
       );
 

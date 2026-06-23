@@ -96,7 +96,7 @@ class _CustomBottomNavBarState extends State<CustomBottomNavBar>
           // Expand the Stack's bounds so the floating button is fully clickable
           const SizedBox(height: 100, width: double.infinity),
 
-          // 1. Blur and Dim Overlay when menu is open
+          // 1. Dim Overlay when menu is open (Blur removed for performance)
           if (widget.isMenuOpen)
             Positioned.fill(
               child: GestureDetector(
@@ -104,10 +104,8 @@ class _CustomBottomNavBarState extends State<CustomBottomNavBar>
                 behavior: HitTestBehavior.translucent,
                 child: FadeTransition(
                   opacity: _expandAnimation,
-                  child: // Remove BackdropFilter entirely, use this instead:
-                  FadeTransition(
-                    opacity: _expandAnimation,
-                    child: ColoredBox(color: Colors.black54),
+                  child: Container(
+                    color: Colors.black.withOpacity(0.6),
                   ),
                 ),
               ),

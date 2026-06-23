@@ -42,7 +42,8 @@ class CallScreen extends ConsumerStatefulWidget {
   ConsumerState<CallScreen> createState() => _CallScreenState();
 }
 
-class _CallScreenState extends ConsumerState<CallScreen> with SingleTickerProviderStateMixin {
+class _CallScreenState extends ConsumerState<CallScreen>
+    with SingleTickerProviderStateMixin {
   int? _remoteUid;
   bool _localUserJoined = false;
   bool _isMuted = false;
@@ -62,17 +63,21 @@ class _CallScreenState extends ConsumerState<CallScreen> with SingleTickerProvid
     super.initState();
     _controller = ref.read(callControllerProvider.notifier);
     _isSpeakerOn = !widget.isAudioCall;
-    
+
     _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 2),
     )..repeat(reverse: true);
 
-    if (widget.isOutgoing) {
-      _playOutgoingRingtone();
-      _startTimeoutTimer();
-    }
-    _initAgora();
+    // Let the first frame render before hitting audio/network
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (widget.isOutgoing) {
+        _playOutgoingRingtone();
+        _startTimeoutTimer();
+      }
+      _initAgora();
+    });
   }
 
   @override
@@ -129,7 +134,10 @@ class _CallScreenState extends ConsumerState<CallScreen> with SingleTickerProvid
   Future<void> _checkConnectionStatus() async {
     if (_timer != null || _isDisposed) return;
     try {
-      final snapshot = await ref.read(callRepositoryProvider).callStream(widget.channelId).first;
+      final snapshot = await ref
+          .read(callRepositoryProvider)
+          .callStream(widget.channelId)
+          .first;
       if (snapshot.exists) {
         final data = snapshot.data() as Map<String, dynamic>;
         if (data['status'] == 'ongoing') {
@@ -140,7 +148,7 @@ class _CallScreenState extends ConsumerState<CallScreen> with SingleTickerProvid
             _duration = Duration(seconds: (now - ongoingAt) ~/ 1000);
           }
           if (_remoteUid != null) _startTimer();
-          if (mounted) setState(() {}); 
+          if (mounted) setState(() {});
         }
       }
     } catch (e) {
@@ -170,24 +178,33 @@ class _CallScreenState extends ConsumerState<CallScreen> with SingleTickerProvid
         onJoinChannelSuccess: (RtcConnection connection, int elapsed) {
           if (mounted) setState(() => _localUserJoined = true);
           if (!widget.isOutgoing) {
-            ref.read(callRepositoryProvider).updateCallStatus(widget.channelId, 'ongoing');
+            ref
+                .read(callRepositoryProvider)
+                .updateCallStatus(widget.channelId, 'ongoing');
           }
         },
         onUserJoined: (RtcConnection connection, int remoteUid, int elapsed) {
           setState(() => _remoteUid = remoteUid);
           _checkConnectionStatus();
         },
-        onUserOffline: (RtcConnection connection, int remoteUid, UserOfflineReasonType reason) {
-          setState(() => _remoteUid = null);
-          _timer?.cancel();
-          _stopRingtone();
-          _controller.endCall(widget.channelId);
-          if (mounted) Navigator.of(context).pop();
-        },
+        onUserOffline:
+            (
+              RtcConnection connection,
+              int remoteUid,
+              UserOfflineReasonType reason,
+            ) {
+              setState(() => _remoteUid = null);
+              _timer?.cancel();
+              _stopRingtone();
+              _controller.endCall(widget.channelId);
+              if (mounted) Navigator.of(context).pop();
+            },
       ),
     );
 
-    final token = await ref.read(callRepositoryProvider).getAgoraToken(widget.channelId, 0);
+    final token = await ref
+        .read(callRepositoryProvider)
+        .getAgoraToken(widget.channelId, 0);
     if (token == null) {
       if (mounted) Navigator.pop(context);
       return;
@@ -195,26 +212,38 @@ class _CallScreenState extends ConsumerState<CallScreen> with SingleTickerProvid
 
     await _controller.joinChannel(widget.channelId, token);
 
-    _callStreamSubscription = ref.listenManual<AsyncValue<DocumentSnapshot>>(callStreamProvider(widget.channelId), (previous, next) {
-      final snapshot = next.asData?.value;
-      if (snapshot != null && snapshot.exists) {
-        final data = snapshot.data() as Map<String, dynamic>;
-        final rawCreatedAt = data['createdAt'];
-        int createdAt = rawCreatedAt is Timestamp ? rawCreatedAt.millisecondsSinceEpoch : (rawCreatedAt ?? 0);
-        if (createdAt > _startTime - 10000 && (data['status'] == 'ended' || data['status'] == 'timed_out' || data['status'] == 'declined')) {
-          _stopRingtone();
-          final status = data['status'];
-          if (mounted) {
-            setState(() => _statusMessage = status == 'declined' ? "DECLINED" : "DISCONNECTED");
-            Future.delayed(const Duration(seconds: 2), () {
-              if (mounted) {
-                Navigator.of(context).pop();
-              }
-            });
+    _callStreamSubscription = ref.listenManual<AsyncValue<DocumentSnapshot>>(
+      callStreamProvider(widget.channelId),
+      (previous, next) {
+        final snapshot = next.asData?.value;
+        if (snapshot != null && snapshot.exists) {
+          final data = snapshot.data() as Map<String, dynamic>;
+          final rawCreatedAt = data['createdAt'];
+          int createdAt = rawCreatedAt is Timestamp
+              ? rawCreatedAt.millisecondsSinceEpoch
+              : (rawCreatedAt ?? 0);
+          if (createdAt > _startTime - 10000 &&
+              (data['status'] == 'ended' ||
+                  data['status'] == 'timed_out' ||
+                  data['status'] == 'declined')) {
+            _stopRingtone();
+            final status = data['status'];
+            if (mounted) {
+              setState(
+                () => _statusMessage = status == 'declined'
+                    ? "DECLINED"
+                    : "DISCONNECTED",
+              );
+              Future.delayed(const Duration(seconds: 2), () {
+                if (mounted) {
+                  Navigator.of(context).pop();
+                }
+              });
+            }
           }
         }
-      }
-    });
+      },
+    );
   }
 
   @override
@@ -224,10 +253,17 @@ class _CallScreenState extends ConsumerState<CallScreen> with SingleTickerProvid
       body: Stack(
         children: [
           // Background (Video or Gradient)
-          if (widget.isAudioCall) _buildAudioBackground() else _buildVideoBackground(),
+          if (widget.isAudioCall)
+            _buildAudioBackground()
+          else
+            _buildVideoBackground(),
 
           // Glassmorphic Overlay for Audio Call
-          if (widget.isAudioCall) BackdropFilter(filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10), child: Container(color: Colors.black.withValues(alpha: 0.2))),
+          if (widget.isAudioCall)
+            BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+              child: Container(color: Colors.black.withValues(alpha: 0.2)),
+            ),
 
           // UI Layer
           SafeArea(
@@ -236,7 +272,8 @@ class _CallScreenState extends ConsumerState<CallScreen> with SingleTickerProvid
                 const SizedBox(height: 40),
                 _buildTopInfo(),
                 const Spacer(),
-                if (widget.isAudioCall || _remoteUid == null) _buildMainProfile(),
+                if (widget.isAudioCall || _remoteUid == null)
+                  _buildMainProfile(),
                 const Spacer(),
                 _buildBottomToolbar(),
                 const SizedBox(height: 40),
@@ -255,7 +292,9 @@ class _CallScreenState extends ConsumerState<CallScreen> with SingleTickerProvid
     return Column(
       children: [
         StreamBuilder<DocumentSnapshot>(
-          stream: ref.watch(callRepositoryProvider).callStream(widget.channelId),
+          stream: ref
+              .watch(callRepositoryProvider)
+              .callStream(widget.channelId),
           builder: (context, snapshot) {
             String status = "CONNECTING...";
             if (snapshot.hasData && snapshot.data!.exists) {
@@ -263,17 +302,27 @@ class _CallScreenState extends ConsumerState<CallScreen> with SingleTickerProvid
               status = data['status'] == 'ongoing' ? "CONNECTED" : "CALLING...";
             }
             if (_statusMessage != null) status = _statusMessage!;
-            
+
             return Text(
               status,
-              style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 2),
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.7),
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 2,
+              ),
             );
           },
         ),
         const SizedBox(height: 12),
         Text(
           _formatDuration(_duration),
-          style: const TextStyle(color: Colors.white, fontSize: 36, fontWeight: FontWeight.w300, fontFamily: 'monospace'),
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 36,
+            fontWeight: FontWeight.w300,
+            fontFamily: 'monospace',
+          ),
         ),
       ],
     );
@@ -291,9 +340,16 @@ class _CallScreenState extends ConsumerState<CallScreen> with SingleTickerProvid
               height: 160,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                border: Border.all(color: AppColors.primary.withValues(alpha: 0.3), width: 8),
+                border: Border.all(
+                  color: AppColors.primary.withValues(alpha: 0.3),
+                  width: 8,
+                ),
                 boxShadow: [
-                  BoxShadow(color: AppColors.primary.withValues(alpha: 0.2), blurRadius: 40, spreadRadius: 10),
+                  BoxShadow(
+                    color: AppColors.primary.withValues(alpha: 0.2),
+                    blurRadius: 40,
+                    spreadRadius: 10,
+                  ),
                 ],
               ),
               child: ClipRRect(
@@ -303,16 +359,24 @@ class _CallScreenState extends ConsumerState<CallScreen> with SingleTickerProvid
                         imageUrl: widget.guestUser.photoUrl!,
                         fit: BoxFit.cover,
                         placeholder: (context, url) => const Center(
-                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
                         ),
-                        errorWidget: (context, url, error) => const Icon(Icons.error, color: Colors.white),
+                        errorWidget: (context, url, error) =>
+                            const Icon(Icons.error, color: Colors.white),
                       )
                     : Container(
                         color: AppColors.primary,
                         child: Center(
                           child: Text(
                             widget.guestUser.displayName[0].toUpperCase(),
-                            style: const TextStyle(fontSize: 64, color: Colors.white, fontWeight: FontWeight.bold),
+                            style: const TextStyle(
+                              fontSize: 64,
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
                       ),
@@ -323,12 +387,19 @@ class _CallScreenState extends ConsumerState<CallScreen> with SingleTickerProvid
         const SizedBox(height: 32),
         Text(
           widget.guestUser.displayName,
-          style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold),
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 28,
+            fontWeight: FontWeight.bold,
+          ),
         ),
         const SizedBox(height: 8),
         Text(
           widget.isAudioCall ? 'Audio Call' : 'Video Call',
-          style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 16),
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.5),
+            fontSize: 16,
+          ),
         ),
       ],
     );
@@ -357,7 +428,9 @@ class _CallScreenState extends ConsumerState<CallScreen> with SingleTickerProvid
           ),
           if (!widget.isAudioCall)
             _buildControlButton(
-              icon: _isVideoEnabled ? Icons.videocam_rounded : Icons.videocam_off_rounded,
+              icon: _isVideoEnabled
+                  ? Icons.videocam_rounded
+                  : Icons.videocam_off_rounded,
               isActive: !_isVideoEnabled,
               color: !_isVideoEnabled ? AppColors.error : Colors.white,
               onTap: () {
@@ -366,7 +439,9 @@ class _CallScreenState extends ConsumerState<CallScreen> with SingleTickerProvid
               },
             ),
           _buildControlButton(
-            icon: _isSpeakerOn ? Icons.volume_up_rounded : Icons.volume_down_rounded,
+            icon: _isSpeakerOn
+                ? Icons.volume_up_rounded
+                : Icons.volume_down_rounded,
             isActive: _isSpeakerOn,
             color: _isSpeakerOn ? AppColors.success : Colors.white,
             onTap: () {
@@ -386,14 +461,25 @@ class _CallScreenState extends ConsumerState<CallScreen> with SingleTickerProvid
     );
   }
 
-  Widget _buildControlButton({required IconData icon, Color color = Colors.white, Color? backgroundColor, bool isActive = false, bool isLarge = false, required VoidCallback onTap}) {
+  Widget _buildControlButton({
+    required IconData icon,
+    Color color = Colors.white,
+    Color? backgroundColor,
+    bool isActive = false,
+    bool isLarge = false,
+    required VoidCallback onTap,
+  }) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
         width: isLarge ? 64 : 52,
         height: isLarge ? 64 : 52,
         decoration: BoxDecoration(
-          color: backgroundColor ?? (isActive ? Colors.white.withValues(alpha: 0.2) : Colors.transparent),
+          color:
+              backgroundColor ??
+              (isActive
+                  ? Colors.white.withValues(alpha: 0.2)
+                  : Colors.transparent),
           shape: BoxShape.circle,
         ),
         child: Icon(icon, color: color, size: isLarge ? 32 : 24),

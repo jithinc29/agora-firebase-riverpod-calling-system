@@ -15,12 +15,11 @@ class UserRepository {
 
   UserRepository({required FirebaseFirestore firestore}) : _firestore = firestore;
 
-  Stream<List<UserModel>> getAllUsers() {
-    return _firestore.collection('users').snapshots().map((snapshot) {
-      return snapshot.docs
-          .map((doc) => UserModel.fromMap(doc.data()))
-          .toList();
-    });
+  Future<List<UserModel>> getAllUsers() async {
+    final snapshot = await _firestore.collection('users').get();
+    return snapshot.docs
+        .map((doc) => UserModel.fromMap(doc.data()))
+        .toList();
   }
 
   Stream<UserModel?> getUser(String uid) {
@@ -204,7 +203,7 @@ UserRepository userRepository(Ref ref) {
 }
 
 @riverpod
-Stream<List<UserModel>> allUsers(Ref ref) {
+Future<List<UserModel>> allUsers(Ref ref) {
   return ref.watch(userRepositoryProvider).getAllUsers();
 }
 

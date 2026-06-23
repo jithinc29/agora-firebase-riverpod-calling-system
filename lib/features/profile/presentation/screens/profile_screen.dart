@@ -43,7 +43,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   bool _isUploading = false;
   bool _isSaving = false;
   File? _localSelectedImage;
-  Future<List<Map<String, dynamic>>>? _mediaFuture;
+  Future<Map<String, List<Map<String, dynamic>>>>? _mediaFuture;
   String? _lastUid;
   List<DocumentSnapshot> _postsDocs = [];
 
@@ -67,7 +67,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   Future<bool> _checkAndRequestPermission(Permission permission) async {
     final status = await permission.request();
     if (status.isGranted || status.isLimited) return true;
-    if (Platform.isAndroid && (permission == Permission.photos || permission == Permission.videos)) {
+    if (Platform.isAndroid &&
+        (permission == Permission.photos || permission == Permission.videos)) {
       final storageStatus = await Permission.storage.request();
       return storageStatus.isGranted;
     }
@@ -78,7 +79,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final hasPermission = await _checkAndRequestPermission(Permission.photos);
     if (!hasPermission) {
       if (mounted) {
-        TopNotificationService.showError(context, 'Photo permission is required.');
+        TopNotificationService.showError(
+          context,
+          'Photo permission is required.',
+        );
       }
       return;
     }
@@ -160,7 +164,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     }
   }
 
-  Future<void> _updateDenormalizedUserData(String uid, {String? newName, String? newPhotoUrl}) async {
+  Future<void> _updateDenormalizedUserData(
+    String uid, {
+    String? newName,
+    String? newPhotoUrl,
+  }) async {
     if (newName == null && newPhotoUrl == null) return;
 
     final updates = <String, dynamic>{};
@@ -168,37 +176,53 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     if (newPhotoUrl != null) updates['photoUrl'] = newPhotoUrl;
 
     try {
-      final batch = FirebaseFirestore.instance.batch();
+      final List<DocumentReference> allRefs = [];
 
       // 1. Posts
-      final posts = await FirebaseFirestore.instance.collection('posts').where('uid', isEqualTo: uid).get();
-      for (var doc in posts.docs) {
-        batch.update(doc.reference, updates);
-      }
+      final posts = await FirebaseFirestore.instance
+          .collection('posts')
+          .where('uid', isEqualTo: uid)
+          .get();
+      allRefs.addAll(posts.docs.map((doc) => doc.reference));
 
       // 2. Reels
-      final reels = await FirebaseFirestore.instance.collection('reels').where('uid', isEqualTo: uid).get();
-      for (var doc in reels.docs) {
-        batch.update(doc.reference, updates);
-      }
+      final reels = await FirebaseFirestore.instance
+          .collection('reels')
+          .where('uid', isEqualTo: uid)
+          .get();
+      allRefs.addAll(reels.docs.map((doc) => doc.reference));
 
       // 3. Stories
-      final stories = await FirebaseFirestore.instance.collection('stories').where('uid', isEqualTo: uid).get();
-      for (var doc in stories.docs) {
-        batch.update(doc.reference, updates);
-      }
+      final stories = await FirebaseFirestore.instance
+          .collection('stories')
+          .where('uid', isEqualTo: uid)
+          .get();
+      allRefs.addAll(stories.docs.map((doc) => doc.reference));
 
       // 4. Comments (using collectionGroup to find all comments by this user across all posts/reels)
-      final comments = await FirebaseFirestore.instance.collectionGroup('comments').where('uid', isEqualTo: uid).get();
-      for (var doc in comments.docs) {
-        batch.update(doc.reference, updates);
-      }
+      final comments = await FirebaseFirestore.instance
+          .collectionGroup('comments')
+          .where('uid', isEqualTo: uid)
+          .get();
+      allRefs.addAll(comments.docs.map((doc) => doc.reference));
 
-      await batch.commit();
+      // Firestore allows a maximum of 500 operations per batch
+      const int batchSize = 500;
+      for (int i = 0; i < allRefs.length; i += batchSize) {
+        final batch = FirebaseFirestore.instance.batch();
+        final end = (i + batchSize < allRefs.length)
+            ? i + batchSize
+            : allRefs.length;
+        for (var ref in allRefs.sublist(i, end)) {
+          batch.update(ref, updates);
+        }
+        await batch.commit();
+      }
     } catch (e) {
       debugPrint('Error updating denormalized user data: $e');
     }
   }
+
   void _signOut() {
     ref.read(authControllerProvider.notifier).signOut();
     if (!widget.isEmbedded) {
@@ -243,11 +267,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         showDialog(
           context: context,
           barrierDismissible: false,
-          builder: (context) => const Center(
-            child: CircularProgressIndicator(),
-          ),
+          builder: (context) =>
+              const Center(child: CircularProgressIndicator()),
         );
-        
+
         try {
           await ref.read(authControllerProvider.notifier).deleteAccount();
           if (mounted) {
@@ -303,7 +326,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             }
 
             return DefaultTabController(
-              length: 2,
+              length: 3,
               child: RefreshIndicator(
                 onRefresh: () async {
                   setState(() {
@@ -342,14 +365,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             tabs: [
                               Tab(icon: Icon(Icons.grid_on_rounded)),
                               Tab(icon: Icon(Icons.ondemand_video_rounded)),
+                              Tab(icon: Icon(Icons.visibility_off_rounded)),
                             ],
                           ),
                         ),
                       ),
                     ];
                   },
-                  body: FutureBuilder<List<Map<String, dynamic>>>(
-                    future: _mediaFuture,
+                  body: FutureBuilder<Map<String, List<Map<String, dynamic>>>>(
+                    future:
+                        _mediaFuture
+                            as Future<Map<String, List<Map<String, dynamic>>>>?,
                     builder: (context, snapshot) {
                       if (snapshot.connectionState == ConnectionState.waiting) {
                         return const Center(child: CircularProgressIndicator());
@@ -362,15 +388,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           ),
                         );
                       }
-                      final allMedia = snapshot.data ?? [];
-                      final videosOnly = allMedia
-                          .where((m) => m['type'] == 'video')
-                          .toList();
+
+                      final mediaMap = snapshot.data ?? {};
+                      final visibleMedia = mediaMap['visibleMedia'] ?? [];
+                      final videosOnly = mediaMap['videosOnly'] ?? [];
+                      final hiddenMedia = mediaMap['hiddenMedia'] ?? [];
 
                       return TabBarView(
                         children: [
-                          _buildMediaGrid(allMedia, user, isVideosOnly: false),
-                          _buildMediaGrid(videosOnly, user, isVideosOnly: true),
+                          _buildMediaGrid(visibleMedia, user),
+                          _buildMediaGrid(videosOnly, user),
+                          _buildMediaGrid(hiddenMedia, user),
                         ],
                       );
                     },
@@ -453,22 +481,37 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                               height: 72,
                               fadeInDuration: const Duration(milliseconds: 100),
                               placeholder: (context, url) => Container(
-                                color: AppColors.primary.withValues(alpha: 0.05),
+                                color: AppColors.primary.withValues(
+                                  alpha: 0.05,
+                                ),
                                 child: Center(
                                   child: Text(
-                                    user.displayName.isNotEmpty ? user.displayName[0].toUpperCase() : '?',
-                                    style: const TextStyle(fontSize: 26, color: AppColors.primary, fontWeight: FontWeight.bold),
+                                    user.displayName.isNotEmpty
+                                        ? user.displayName[0].toUpperCase()
+                                        : '?',
+                                    style: const TextStyle(
+                                      fontSize: 26,
+                                      color: AppColors.primary,
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
                                 ),
                               ),
-                              errorWidget: (context, url, error) => const Icon(Icons.error, size: 20),
+                              errorWidget: (context, url, error) =>
+                                  const Icon(Icons.error, size: 20),
                             )
                           : Container(
                               color: AppColors.primary.withValues(alpha: 0.05),
                               child: Center(
                                 child: Text(
-                                  user.displayName.isNotEmpty ? user.displayName[0].toUpperCase() : '?',
-                                  style: const TextStyle(fontSize: 26, color: AppColors.primary, fontWeight: FontWeight.bold),
+                                  user.displayName.isNotEmpty
+                                      ? user.displayName[0].toUpperCase()
+                                      : '?',
+                                  style: const TextStyle(
+                                    fontSize: 26,
+                                    color: AppColors.primary,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                               ),
                             ),
@@ -482,14 +525,30 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   children: [
                     _buildStatColumn('Posts', '${_postsDocs.length}'),
                     _buildStatColumn(
-                      'Followers', 
+                      'Followers',
                       '${activeFollowers.length}',
-                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => FollowListScreen(title: 'Followers', uids: activeFollowers))),
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => FollowListScreen(
+                            title: 'Followers',
+                            uids: activeFollowers,
+                          ),
+                        ),
+                      ),
                     ),
                     _buildStatColumn(
-                      'Following', 
+                      'Following',
                       '${activeFollowing.length}',
-                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => FollowListScreen(title: 'Following', uids: activeFollowing))),
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => FollowListScreen(
+                            title: 'Following',
+                            uids: activeFollowing,
+                          ),
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -499,7 +558,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           const SizedBox(height: 12),
           Text(
             user.displayName,
-            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+            style: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.bold,
+              color: AppColors.textPrimary,
+            ),
           ),
           const SizedBox(height: 4),
           Row(
@@ -507,10 +570,20 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               Container(
                 width: 6,
                 height: 6,
-                decoration: const BoxDecoration(color: AppColors.success, shape: BoxShape.circle),
+                decoration: const BoxDecoration(
+                  color: AppColors.success,
+                  shape: BoxShape.circle,
+                ),
               ),
               const SizedBox(width: 5),
-              const Text('Active now', style: TextStyle(color: AppColors.success, fontWeight: FontWeight.w500, fontSize: 11)),
+              const Text(
+                'Active now',
+                style: TextStyle(
+                  color: AppColors.success,
+                  fontWeight: FontWeight.w500,
+                  fontSize: 11,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 16),
@@ -523,10 +596,20 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     onPressed: () => _showEditProfileSheet(context, user),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppColors.textPrimary,
-                      side: BorderSide(color: Colors.black.withValues(alpha: 0.1)),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      side: BorderSide(
+                        color: Colors.black.withValues(alpha: 0.1),
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     ),
-                    child: const Text('Edit Profile', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                    child: const Text(
+                      'Edit Profile',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -549,8 +632,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   style: OutlinedButton.styleFrom(
                     padding: EdgeInsets.zero,
                     foregroundColor: AppColors.textPrimary,
-                    side: BorderSide(color: Colors.black.withValues(alpha: 0.1)),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    side: BorderSide(
+                      color: Colors.black.withValues(alpha: 0.1),
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                   ),
                   child: Stack(
                     clipBehavior: Clip.none,
@@ -598,17 +685,28 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-            Text(count, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
-            const SizedBox(height: 2),
-            Text(label, style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
-          ],
+              Text(
+                count,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
-    ),
-  );
-}
-
-
+    );
+  }
 
   void _showEditProfileSheet(BuildContext context, UserModel user) {
     _nameController.text = user.displayName;
@@ -661,37 +759,60 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             ),
                             child: ClipOval(
                               child: _localSelectedImage != null
-                                  ? Image.file(_localSelectedImage!, fit: BoxFit.cover)
+                                  ? Image.file(
+                                      _localSelectedImage!,
+                                      fit: BoxFit.cover,
+                                    )
                                   : (user.photoUrl != null
-                                      ? CachedNetworkImage(
-                                          imageUrl: user.photoUrl!,
-                                          fit: BoxFit.cover,
-                                        )
-                                      : Center(
-                                          child: Text(
-                                            user.displayName.isNotEmpty ? user.displayName[0].toUpperCase() : '?',
-                                            style: const TextStyle(fontSize: 32, color: AppColors.primary, fontWeight: FontWeight.bold),
-                                          ),
-                                        )),
+                                        ? CachedNetworkImage(
+                                            imageUrl: user.photoUrl!,
+                                            fit: BoxFit.cover,
+                                          )
+                                        : Center(
+                                            child: Text(
+                                              user.displayName.isNotEmpty
+                                                  ? user.displayName[0]
+                                                        .toUpperCase()
+                                                  : '?',
+                                              style: const TextStyle(
+                                                fontSize: 32,
+                                                color: AppColors.primary,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          )),
                             ),
                           ),
                           Positioned(
                             bottom: 0,
                             right: 0,
                             child: GestureDetector(
-                              onTap: _isUploading ? null : () async {
-                                await _pickAndUploadImage();
-                                setSheetState(() {});
-                              },
+                              onTap: _isUploading
+                                  ? null
+                                  : () async {
+                                      await _pickAndUploadImage();
+                                      setSheetState(() {});
+                                    },
                               child: Container(
                                 padding: const EdgeInsets.all(6),
                                 decoration: const BoxDecoration(
                                   color: AppColors.primary,
                                   shape: BoxShape.circle,
                                 ),
-                                child: _isUploading 
-                                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                                    : const Icon(Icons.camera_alt_rounded, color: Colors.white, size: 16),
+                                child: _isUploading
+                                    ? const SizedBox(
+                                        width: 16,
+                                        height: 16,
+                                        child: CircularProgressIndicator(
+                                          color: Colors.white,
+                                          strokeWidth: 2,
+                                        ),
+                                      )
+                                    : const Icon(
+                                        Icons.camera_alt_rounded,
+                                        color: Colors.white,
+                                        size: 16,
+                                      ),
                               ),
                             ),
                           ),
@@ -806,7 +927,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
   }
 
-  Future<List<Map<String, dynamic>>> _fetchUserMedia(String uid) async {
+  Future<Map<String, List<Map<String, dynamic>>>> _fetchUserMedia(
+    String uid,
+  ) async {
     final postsFuture = FirebaseFirestore.instance
         .collection('posts')
         .where('uid', isEqualTo: uid)
@@ -821,8 +944,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
     final postsDocs = results[0].docs.toList();
     postsDocs.sort((a, b) {
-      final aTime = parseTimestamp((a.data() as Map<String, dynamic>)['timestamp']);
-      final bTime = parseTimestamp((b.data() as Map<String, dynamic>)['timestamp']);
+      final aTime = parseTimestamp(
+        (a.data() as Map<String, dynamic>)['timestamp'],
+      );
+      final bTime = parseTimestamp(
+        (b.data() as Map<String, dynamic>)['timestamp'],
+      );
       return bTime.compareTo(aTime);
     });
     _postsDocs = postsDocs;
@@ -832,7 +959,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final List<Map<String, dynamic>> allMedia = [];
 
     for (var doc in postsDocs) {
-      final data = doc.data();
+      final Map<String, dynamic> data = Map<String, dynamic>.from(
+        doc.data() as Map<String, dynamic>,
+      );
       if (data['type'] == 'image' || data['type'] == 'video') {
         data['id'] = doc.id;
         data['doc'] = doc;
@@ -842,7 +971,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     }
 
     for (var doc in reelsDocs) {
-      final data = doc.data();
+      final Map<String, dynamic> data = Map<String, dynamic>.from(
+        doc.data() as Map<String, dynamic>,
+      );
       data['id'] = doc.id;
       data['doc'] = doc;
       data['source'] = 'reel';
@@ -860,14 +991,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       setState(() {});
     }
 
-    return allMedia;
+    final visibleMedia = allMedia.where((m) => m['isHidden'] != true).toList();
+    final videosOnly = visibleMedia.where((m) => m['type'] == 'video').toList();
+    final hiddenMedia = allMedia.where((m) => m['isHidden'] == true).toList();
+
+    return {
+      'visibleMedia': visibleMedia,
+      'videosOnly': videosOnly,
+      'hiddenMedia': hiddenMedia,
+    };
   }
 
-  Widget _buildMediaGrid(
-    List<Map<String, dynamic>> mediaList,
-    UserModel user, {
-    bool isVideosOnly = false,
-  }) {
+  Widget _buildMediaGrid(List<Map<String, dynamic>> mediaList, UserModel user) {
     if (mediaList.isEmpty) {
       return const Center(
         child: Column(
@@ -904,52 +1039,25 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
         return GestureDetector(
           onTap: () {
-            final media = mediaList[index];
-            if (media['source'] == 'reel') {
-              final docsToPass = mediaList.map((m) => m['doc'] as DocumentSnapshot).toList();
-              int targetIndex = docsToPass.indexWhere((doc) => doc.id == media['id']);
-              if (targetIndex == -1) targetIndex = 0;
-
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => UserPostsScreen(
-                    currentUser: user,
-                    targetUserId: user.uid,
-                    initialIndex: targetIndex,
-                    posts: docsToPass,
-                  ),
-                ),
-              );
-              return;
-            }
-
-            final postsToPass = isVideosOnly
-                ? _postsDocs
-                      .where(
-                        (p) =>
-                            (p.data() as Map<String, dynamic>)['type'] ==
-                            'video',
-                      )
-                      .toList()
-                : _postsDocs;
-
-            int targetIndex = postsToPass.indexWhere(
-              (p) => p.id == media['id'],
+            final docsToPass = mediaList
+                .map((m) => m['doc'] as DocumentSnapshot)
+                .toList();
+            int targetIndex = docsToPass.indexWhere(
+              (doc) => doc.id == media['id'],
             );
-            if (targetIndex != -1) {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => UserPostsScreen(
-                    currentUser: user,
-                    targetUserId: user.uid,
-                    initialIndex: targetIndex,
-                    posts: postsToPass,
-                  ),
+            if (targetIndex == -1) targetIndex = 0;
+
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => UserPostsScreen(
+                  currentUser: user,
+                  targetUserId: user.uid,
+                  initialIndex: targetIndex,
+                  posts: docsToPass,
                 ),
-              );
-            }
+              ),
+            );
           },
           child: Stack(
             fit: StackFit.expand,
@@ -959,9 +1067,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 CachedNetworkImage(
                   imageUrl: thumbnailUrl,
                   fit: BoxFit.cover,
-                  placeholder: (context, url) => const Center(
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
+                  placeholder: (context, url) => Container(color: Colors.grey.shade300),
                   errorWidget: (context, url, error) => const Icon(Icons.error),
                 ),
               if (isVideo)

@@ -42,6 +42,11 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
   void initState() {
     super.initState();
     _mediaFuture = _fetchUserMedia(widget.user.uid);
+
+    // Pre-warm Agora so it's ready when user taps call
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(callControllerProvider.notifier).initEngine(isAudioCall: false);
+    });
   }
 
   Future<List<Map<String, dynamic>>> _fetchUserMedia(String uid) async {
@@ -58,8 +63,12 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
 
     final postsDocs = results[0].docs.toList();
     postsDocs.sort((a, b) {
-      final aTime = parseTimestamp((a.data() as Map<String, dynamic>)['timestamp']);
-      final bTime = parseTimestamp((b.data() as Map<String, dynamic>)['timestamp']);
+      final aTime = parseTimestamp(
+        (a.data() as Map<String, dynamic>)['timestamp'],
+      );
+      final bTime = parseTimestamp(
+        (b.data() as Map<String, dynamic>)['timestamp'],
+      );
       return bTime.compareTo(aTime);
     });
     _postsDocs = postsDocs;
@@ -421,13 +430,18 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
         final media = mediaList[index];
         final isReel = media['source'] == 'reel';
         final isVideo = media['type'] == 'video';
-        final thumbnailUrl = media['thumbnailUrl'] ?? media['thumbnail'] ?? media['mediaUrl'];
+        final thumbnailUrl =
+            media['thumbnailUrl'] ?? media['thumbnail'] ?? media['mediaUrl'];
 
         return GestureDetector(
           onTap: () {
             if (media['source'] == 'reel') {
-              final docsToPass = mediaList.map((m) => m['doc'] as DocumentSnapshot).toList();
-              int targetIndex = docsToPass.indexWhere((doc) => doc.id == media['id']);
+              final docsToPass = mediaList
+                  .map((m) => m['doc'] as DocumentSnapshot)
+                  .toList();
+              int targetIndex = docsToPass.indexWhere(
+                (doc) => doc.id == media['id'],
+              );
               if (targetIndex == -1) targetIndex = 0;
 
               Navigator.push(
@@ -523,7 +537,10 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
     List<String> activeFollowing,
   ) {
     final now = DateTime.now();
-    final isActuallyOnline = targetUser.isOnline && targetUser.lastSeen != null && now.difference(targetUser.lastSeen!).inMinutes < 2;
+    final isActuallyOnline =
+        targetUser.isOnline &&
+        targetUser.lastSeen != null &&
+        now.difference(targetUser.lastSeen!).inMinutes < 2;
 
     return Container(
       width: double.infinity,
@@ -547,7 +564,9 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
                     border: Border.all(color: Colors.white, width: 2),
                     image: targetUser.photoUrl != null
                         ? DecorationImage(
-                            image: CachedNetworkImageProvider(targetUser.photoUrl!),
+                            image: CachedNetworkImageProvider(
+                              targetUser.photoUrl!,
+                            ),
                             fit: BoxFit.cover,
                           )
                         : null,
@@ -578,14 +597,34 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
                   children: [
                     _buildStatColumn('Posts', '${_postsDocs.length}'),
                     _buildStatColumn(
-                      'Followers', 
+                      'Followers',
                       '${activeFollowers.length}',
-                      onTap: isFollowing ? () => Navigator.push(context, MaterialPageRoute(builder: (_) => FollowListScreen(title: 'Followers', uids: activeFollowers))) : null,
+                      onTap: isFollowing
+                          ? () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => FollowListScreen(
+                                  title: 'Followers',
+                                  uids: activeFollowers,
+                                ),
+                              ),
+                            )
+                          : null,
                     ),
                     _buildStatColumn(
-                      'Following', 
+                      'Following',
                       '${activeFollowing.length}',
-                      onTap: isFollowing ? () => Navigator.push(context, MaterialPageRoute(builder: (_) => FollowListScreen(title: 'Following', uids: activeFollowing))) : null,
+                      onTap: isFollowing
+                          ? () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => FollowListScreen(
+                                  title: 'Following',
+                                  uids: activeFollowing,
+                                ),
+                              ),
+                            )
+                          : null,
                     ),
                   ],
                 ),
@@ -608,15 +647,21 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
                 width: 6,
                 height: 6,
                 decoration: BoxDecoration(
-                  color: isActuallyOnline ? AppColors.success : AppColors.textSecondary.withValues(alpha: 0.5),
+                  color: isActuallyOnline
+                      ? AppColors.success
+                      : AppColors.textSecondary.withValues(alpha: 0.5),
                   shape: BoxShape.circle,
                 ),
               ),
               const SizedBox(width: 6),
               Text(
-                isActuallyOnline ? 'Active now' : _formatLastSeen(targetUser.lastSeen, now),
+                isActuallyOnline
+                    ? 'Active now'
+                    : _formatLastSeen(targetUser.lastSeen, now),
                 style: TextStyle(
-                  color: isActuallyOnline ? AppColors.success : AppColors.textSecondary,
+                  color: isActuallyOnline
+                      ? AppColors.success
+                      : AppColors.textSecondary,
                   fontSize: 11,
                   fontWeight: FontWeight.w500,
                 ),
@@ -628,19 +673,36 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
             width: double.infinity,
             height: 36,
             child: ElevatedButton(
-              onPressed: () => _handleFollow(context, ref, currentUser.uid, targetUser.uid, hasRequested, isFollowing),
+              onPressed: () => _handleFollow(
+                context,
+                ref,
+                currentUser.uid,
+                targetUser.uid,
+                hasRequested,
+                isFollowing,
+              ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: isFollowing ? Colors.white : AppColors.primary,
                 foregroundColor: isFollowing ? AppColors.primary : Colors.white,
                 elevation: 0,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
-                  side: isFollowing ? BorderSide(color: Colors.black.withValues(alpha: 0.1), width: 1) : BorderSide.none,
+                  side: isFollowing
+                      ? BorderSide(
+                          color: Colors.black.withValues(alpha: 0.1),
+                          width: 1,
+                        )
+                      : BorderSide.none,
                 ),
               ),
               child: Text(
-                isFollowing ? 'Following' : (hasRequested ? 'Request Sent' : 'Follow'),
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                isFollowing
+                    ? 'Following'
+                    : (hasRequested ? 'Request Sent' : 'Follow'),
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
+                ),
               ),
             ),
           ),
@@ -659,9 +721,22 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(count, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+              Text(
+                count,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary,
+                ),
+              ),
               const SizedBox(height: 2),
-              Text(label, style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: AppColors.textSecondary,
+                ),
+              ),
             ],
           ),
         ),
@@ -959,8 +1034,33 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
     UserModel currentUser,
     UserModel targetUser,
     bool isAudioCall,
-  ) async {
-    final newChannelId = await ref
+  ) {
+    // Generate channelId locally — no network needed
+    final shortSenderId = currentUser.uid.substring(0, 10);
+    final shortReceiverId = targetUser.uid.substring(0, 10);
+    final channelId =
+        '${shortSenderId}_${shortReceiverId}_${DateTime.now().millisecondsSinceEpoch}';
+
+    // Navigate IMMEDIATELY — zero wait
+    if (!context.mounted) return;
+    globalActiveCallId = channelId;
+
+    Navigator.push(
+      context,
+      PageRouteBuilder(
+        pageBuilder: (_, __, ___) => CallScreen(
+          channelId: channelId,
+          guestUser: targetUser,
+          isAudioCall: isAudioCall,
+          isOutgoing: true,
+        ),
+        transitionDuration: Duration.zero,
+        reverseTransitionDuration: Duration.zero,
+      ),
+    );
+
+    // Signal Firestore + FCM in the background (fire and forget)
+    ref
         .read(callControllerProvider.notifier)
         .makeCall(
           senderId: currentUser.uid,
@@ -969,23 +1069,9 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
           receiverName: targetUser.displayName,
           receiverToken: targetUser.fcmToken ?? '',
           isAudioCall: isAudioCall,
+          channelId: channelId,
           context: context,
         );
-
-    if (newChannelId != null && context.mounted) {
-      globalActiveCallId = newChannelId;
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => CallScreen(
-            channelId: newChannelId,
-            guestUser: targetUser,
-            isAudioCall: isAudioCall,
-            isOutgoing: true,
-          ),
-        ),
-      );
-    }
   }
 
   String _formatLastSeen(DateTime? lastSeen, DateTime now) {

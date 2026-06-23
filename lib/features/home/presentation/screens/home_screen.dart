@@ -7,6 +7,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:video_player/video_player.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -49,7 +50,9 @@ class _FeedMuteNotifier extends Notifier<bool> {
   void set(bool value) => state = value;
 }
 
-final feedMuteProvider = NotifierProvider<_FeedMuteNotifier, bool>(_FeedMuteNotifier.new);
+final feedMuteProvider = NotifierProvider<_FeedMuteNotifier, bool>(
+  _FeedMuteNotifier.new,
+);
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -58,7 +61,8 @@ class HomeScreen extends ConsumerStatefulWidget {
   ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObserver {
+class _HomeScreenState extends ConsumerState<HomeScreen>
+    with WidgetsBindingObserver {
   Timer? _heartbeatTimer;
   final bool _isDeleting = false;
   int _currentTabIndex = 1;
@@ -98,7 +102,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
     // Initialize feed scroll controller and pagination
     _feedScrollController = ScrollController();
     _feedScrollController.addListener(_onFeedScroll);
-    _fetchFeedPostsPage();
   }
 
   @override
@@ -117,7 +120,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
       // Resume only the active reel when returning to foreground
       if (_currentTabIndex == 2) {
         final active = _reelsControllers[_activeReelIndex];
-        if (active != null && active.value.isInitialized && !active.value.isPlaying) {
+        if (active != null &&
+            active.value.isInitialized &&
+            !active.value.isPlaying) {
           active.play();
         }
       }
@@ -149,7 +154,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
   }
 
   void _onFeedScroll() {
-    if (_feedScrollController.position.pixels >= 
+    if (_feedScrollController.position.pixels >=
         _feedScrollController.position.maxScrollExtent - 200) {
       _fetchFeedPostsPage();
     }
@@ -161,7 +166,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
       _hasMoreFeedPosts = true;
       _feedPosts.clear();
     }
-    
+
     if (_isLoadingFeedPosts || !_hasMoreFeedPosts) return;
 
     setState(() {
@@ -191,9 +196,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
         final snapshot = await query.get();
         if (snapshot.docs.isNotEmpty) {
           _lastFeedPostDoc = snapshot.docs.last;
-          
+
           final validDocs = snapshot.docs.where((doc) {
             final data = doc.data() as Map<String, dynamic>;
+            if (data['isHidden'] == true) return false;
             final postUid = data['uid'] as String?;
             return postUid == currentUid || followingUids.contains(postUid);
           }).toList();
@@ -218,7 +224,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
       });
     }
   }
-
 
   Future<void> _fetchReelsPage({bool isRefresh = false}) async {
     if (isRefresh) {
@@ -266,9 +271,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
         final snapshot = await query.get();
         if (snapshot.docs.isNotEmpty) {
           _lastReelDoc = snapshot.docs.last;
-          
+
           final validDocs = snapshot.docs.where((doc) {
             final data = doc.data() as Map<String, dynamic>;
+            if (data['isHidden'] == true) return false;
             final reelUid = data['uid'] as String?;
             return reelUid == currentUid || followingUids.contains(reelUid);
           }).toList();
@@ -295,7 +301,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
       });
     }
   }
-
 
   void _manageReelsControllers() async {
     // Keep current, one ahead, and one behind (3-window)
@@ -343,12 +348,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
         // Already have a controller – play only the active one
         if (existing.value.isInitialized) {
           if (i == _activeReelIndex && !existing.value.isPlaying) {
-            existing.play();
-            existing.setLooping(true);
-          } else {
-          }
-        } else {
-        }
+            if (_currentTabIndex == 2) {
+              existing.play();
+              existing.setLooping(true);
+            }
+          } else {}
+        } else {}
         continue;
       }
 
@@ -392,7 +397,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
       }
 
       // Discard if the slot was evicted while we were awaiting
-      final stillWanted = _reelsControllers.containsKey(index) || _reelsInitializing.contains(index);
+      final stillWanted =
+          _reelsControllers.containsKey(index) ||
+          _reelsInitializing.contains(index);
       if (!stillWanted) {
         controller.dispose();
         return;
@@ -407,8 +414,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
       _reelsControllers[index] = controller;
       _reelsInitializing.remove(index);
 
-      // Play only if this is still the active reel and the tab is visible
-      final shouldPlay = index == _activeReelIndex && _currentTabIndex == 2;
+      // Play only if this is still the active reel, the tab is visible, and story dialog is closed
+      final isStoryOpen = ref.read(isStoryDialogOpenProvider);
+      final shouldPlay =
+          index == _activeReelIndex && _currentTabIndex == 2 && !isStoryOpen;
       if (shouldPlay) {
         controller.setLooping(true);
         controller.play();
@@ -447,7 +456,27 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
       }
     });
 
+    ref.listen(isStoryDialogOpenProvider, (previous, next) {
+      if (previous != next) {
+        if (next) {
+          _pauseActiveReel();
+        } else {
+          _resumeActiveReel();
+        }
+      }
+    });
+
     final currentUserData = ref.watch(currentUserDataProvider);
+
+    // Initial fetch trigger: wait until user data is loaded to fetch feed posts
+    if (currentUserData.value != null &&
+        _feedPosts.isEmpty &&
+        _hasMoreFeedPosts &&
+        !_isLoadingFeedPosts) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _fetchFeedPostsPage();
+      });
+    }
 
     return currentUserData.when(
       data: (user) {
@@ -466,23 +495,49 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
             children: [
               // Main Tab Content
               Positioned.fill(
-                child: _currentTabIndex == 2
-                    ? _buildTabContent(usersAsync, currentUser, user)
-                    : SafeArea(
-                        bottom: false,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Premium Header
-                            _buildHeader(context, ref, user),
-                            const SizedBox(height: 4),
-                            // Expand Content based on active Tab
-                            Expanded(
-                              child: _buildTabContent(usersAsync, currentUser, user),
-                            ),
-                          ],
-                        ),
+                child: IndexedStack(
+                  index: _currentTabIndex,
+                  children: [
+                    // Index 0: Feeds Tab
+                    SafeArea(
+                      bottom: false,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildHeader(context, ref, user, 0),
+                          const SizedBox(height: 4),
+                          Expanded(child: _buildFeedsTab(user)),
+                        ],
                       ),
+                    ),
+                    // Index 1: Chats Tab
+                    SafeArea(
+                      bottom: false,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildHeader(context, ref, user, 1),
+                          const SizedBox(height: 4),
+                          Expanded(child: _buildChatsTab(usersAsync, currentUser, user)),
+                        ],
+                      ),
+                    ),
+                    // Index 2: Reels Tab (No SafeArea, No Header)
+                    _buildReelsTab(user),
+                    // Index 3: Profile Tab
+                    SafeArea(
+                      bottom: false,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildHeader(context, ref, user, 3),
+                          const SizedBox(height: 4),
+                          Expanded(child: ProfileScreen(isEmbedded: true)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
 
               // Custom Floating Bottom Navigation Bar
@@ -490,7 +545,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                 left: 0,
                 right: 0,
                 bottom: 0,
-                top: _isMenuOpen ? 0 : null, // Expand constraints when open to register tap gestures on full screen
+                top: _isMenuOpen
+                    ? 0
+                    : null, // Expand constraints when open to register tap gestures on full screen
                 child: CustomBottomNavBar(
                   currentIndex: _currentTabIndex,
                   isMenuOpen: _isMenuOpen,
@@ -498,10 +555,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                     setState(() {
                       _isMenuOpen = !_isMenuOpen;
                     });
-                    
+
                     if (_currentTabIndex == 2) {
                       final controller = _reelsControllers[_activeReelIndex];
-                      if (controller != null && controller.value.isInitialized) {
+                      if (controller != null &&
+                          controller.value.isInitialized) {
                         if (_isMenuOpen) {
                           controller.pause();
                         } else {
@@ -514,10 +572,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                     setState(() {
                       _isMenuOpen = false;
                     });
-                    
+
                     if (_currentTabIndex == 2) {
                       final controller = _reelsControllers[_activeReelIndex];
-                      if (controller != null && controller.value.isInitialized) {
+                      if (controller != null &&
+                          controller.value.isInitialized) {
                         controller.play();
                       }
                     }
@@ -526,6 +585,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                     setState(() {
                       _currentTabIndex = index;
                     });
+                    ref.read(currentTabIndexProvider.notifier).state = index;
                     if (index == 2) {
                       // Entering Reels tab
 
@@ -535,14 +595,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                       // on the first frame and then jumping to `_activeReelIndex` on the next frame,
                       // which was causing a massive layout and raster spike (rendering two videos instantly).
                       _reelsPageController.dispose();
-                      _reelsPageController = PageController(initialPage: _activeReelIndex);
+                      _reelsPageController = PageController(
+                        initialPage: _activeReelIndex,
+                      );
 
                       WidgetsBinding.instance.addPostFrameCallback((_) {
                         if (!mounted) return;
                         // After the jump, ensure only the active controller is playing
                         for (final entry in _reelsControllers.entries) {
                           if (entry.key != _activeReelIndex) {
-                            if (entry.value.value.isInitialized && entry.value.value.isPlaying) {
+                            if (entry.value.value.isInitialized &&
+                                entry.value.value.isPlaying) {
                               entry.value.pause();
                             }
                           } else {
@@ -561,7 +624,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                       // Note: _manageReelsControllers() is now called inside
                       // the postFrameCallback above (after page jump) when
                       // docs exist. For fresh load it's called by _fetchReelsPage.
-
                     } else {
                       // Leaving the reels tab - silence ALL controllers immediately and reset position
                       for (final c in _reelsControllers.values) {
@@ -581,7 +643,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
           ),
         );
       },
-      loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
+      loading: () =>
+          const Scaffold(body: Center(child: CircularProgressIndicator())),
       error: (e, st) => Scaffold(body: Center(child: Text('Error: $e'))),
     );
   }
@@ -599,7 +662,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
           topRight: Radius.circular(30),
         ),
         boxShadow: [
-          BoxShadow(color: Colors.black12, blurRadius: 20, offset: Offset(0, -5)),
+          BoxShadow(
+            color: Colors.black12,
+            blurRadius: 20,
+            offset: Offset(0, -5),
+          ),
         ],
       ),
       child: usersAsync.when(
@@ -617,57 +684,65 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
           }).toList();
 
           otherUsers.sort((a, b) {
-            final aOnline = a.isOnline && now.difference(a.lastSeen!).inMinutes < 2;
-            final bOnline = b.isOnline && now.difference(b.lastSeen!).inMinutes < 2;
+            final aOnline =
+                a.isOnline && now.difference(a.lastSeen!).inMinutes < 2;
+            final bOnline =
+                b.isOnline && now.difference(b.lastSeen!).inMinutes < 2;
             if (aOnline && !bOnline) return -1;
             if (!aOnline && bOnline) return 1;
             return b.lastSeen!.compareTo(a.lastSeen!);
           });
 
           if (otherUsers.isEmpty) {
-            return const Center(
-              child: Text('No active users found', style: TextStyle(color: AppColors.textSecondary)),
+            return RefreshIndicator(
+              onRefresh: () async => ref.refresh(allUsersProvider.future),
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                children: const [
+                  SizedBox(height: 100),
+                  Center(
+                    child: Text(
+                      'No active users found',
+                      style: TextStyle(color: AppColors.textSecondary),
+                    ),
+                  ),
+                ],
+              ),
             );
           }
 
-          return ListView.builder(
-            padding: const EdgeInsets.only(top: 20, bottom: 78),
-            itemCount: otherUsers.length,
-            itemBuilder: (context, index) {
-              return _buildUserTile(otherUsers[index], user, now);
-            },
+          return RefreshIndicator(
+            onRefresh: () async => ref.refresh(allUsersProvider.future),
+            child: ListView.builder(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.only(top: 20, bottom: 78),
+              itemCount: otherUsers.length,
+              itemBuilder: (context, index) {
+                return _buildUserTile(otherUsers[index], user, now);
+              },
+            ),
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, st) => Center(child: Text('Error: $e')),
+        error: (e, st) => RefreshIndicator(
+          onRefresh: () async => ref.refresh(allUsersProvider.future),
+          child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            children: [
+              SizedBox(height: 100),
+              Center(child: Text('Error: $e')),
+            ],
+          ),
+        ),
       ),
     );
   }
 
-  Widget _buildTabContent(
-    AsyncValue<List<UserModel>> usersAsync,
-    User? currentUser,
-    UserModel user,
-  ) {
-    switch (_currentTabIndex) {
-      case 0:
-        return _buildFeedsTab(user);
-      case 1:
-        return _buildChatsTab(usersAsync, currentUser, user);
-      case 2:
-        return _buildReelsTab(user);
-      case 3:
-        return ProfileScreen(isEmbedded: true);
-      default:
-        return _buildChatsTab(usersAsync, currentUser, user);
-    }
-  }
+
 
   Widget _buildFeedsTab(UserModel currentUser) {
     return Container(
-      decoration: const BoxDecoration(
-        color: AppColors.background,
-      ),
+      decoration: const BoxDecoration(color: AppColors.background),
       child: RefreshIndicator(
         onRefresh: () => _fetchFeedPostsPage(isRefresh: true),
         color: AppColors.primary,
@@ -680,30 +755,31 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
               child: _feedPosts.isEmpty && _isLoadingFeedPosts
                   ? const Center(child: CircularProgressIndicator())
                   : _feedPosts.isEmpty
-                      ? const Center(
-                          child: Text(
-                            'No posts yet. Be the first to share!',
-                            style: TextStyle(color: AppColors.textSecondary),
-                          ),
-                        )
-                      : ListView.builder(
-                          controller: _feedScrollController,
-                          padding: const EdgeInsets.only(top: 4, bottom: 78),
-                          itemCount: _feedPosts.length + (_isLoadingFeedPosts ? 1 : 0),
-                          itemBuilder: (context, index) {
-                            if (index == _feedPosts.length) {
-                              return const Padding(
-                                padding: EdgeInsets.symmetric(vertical: 16),
-                                child: Center(child: CircularProgressIndicator()),
-                              );
-                            }
-                            final doc = _feedPosts[index];
-                            if (_hiddenPostIds.contains(doc.id)) {
-                              return const SizedBox.shrink();
-                            }
-                            return _buildPostCard(doc, currentUser);
-                          },
-                        ),
+                  ? const Center(
+                      child: Text(
+                        'No posts yet. Be the first to share!',
+                        style: TextStyle(color: AppColors.textSecondary),
+                      ),
+                    )
+                  : ListView.builder(
+                      controller: _feedScrollController,
+                      padding: const EdgeInsets.only(top: 4, bottom: 78),
+                      itemCount:
+                          _feedPosts.length + (_isLoadingFeedPosts ? 1 : 0),
+                      itemBuilder: (context, index) {
+                        if (index == _feedPosts.length) {
+                          return const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 16),
+                            child: Center(child: CircularProgressIndicator()),
+                          );
+                        }
+                        final doc = _feedPosts[index];
+                        if (_hiddenPostIds.contains(doc.id)) {
+                          return const SizedBox.shrink();
+                        }
+                        return _buildPostCard(doc, currentUser);
+                      },
+                    ),
             ),
           ],
         ),
@@ -727,8 +803,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
             children: [
               CircleAvatar(
                 radius: 16,
-                backgroundImage: currentUser.photoUrl != null ? CachedNetworkImageProvider(currentUser.photoUrl!) : null,
-                child: currentUser.photoUrl == null ? Text(currentUser.displayName.isNotEmpty ? currentUser.displayName[0].toUpperCase() : '?') : null,
+                backgroundImage: currentUser.photoUrl != null
+                    ? CachedNetworkImageProvider(currentUser.photoUrl!)
+                    : null,
+                child: currentUser.photoUrl == null
+                    ? Text(
+                        currentUser.displayName.isNotEmpty
+                            ? currentUser.displayName[0].toUpperCase()
+                            : '?',
+                      )
+                    : null,
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -738,26 +822,48 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                   minLines: 1,
                   decoration: const InputDecoration(
                     hintText: "What's on your mind?",
-                    hintStyle: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                    hintStyle: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 13,
+                    ),
                     border: InputBorder.none,
                     isDense: true,
                     contentPadding: EdgeInsets.symmetric(vertical: 6),
                   ),
-                  style: const TextStyle(fontSize: 13, color: AppColors.textPrimary),
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: AppColors.textPrimary,
+                  ),
                 ),
               ),
               const SizedBox(width: 8),
               IconButton(
-                onPressed: () => _pickInlinePostMedia(ImageSource.gallery, 'image', currentUser),
-                icon: const Icon(Icons.image_outlined, color: AppColors.primary, size: 20),
+                onPressed: () => _pickInlinePostMedia(
+                  ImageSource.gallery,
+                  'image',
+                  currentUser,
+                ),
+                icon: const Icon(
+                  Icons.image_outlined,
+                  color: AppColors.primary,
+                  size: 20,
+                ),
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
                 tooltip: 'Add Photo',
               ),
               const SizedBox(width: 8),
               IconButton(
-                onPressed: () => _pickInlinePostMedia(ImageSource.gallery, 'video', currentUser),
-                icon: const Icon(Icons.videocam_outlined, color: AppColors.primary, size: 20),
+                onPressed: () => _pickInlinePostMedia(
+                  ImageSource.gallery,
+                  'video',
+                  currentUser,
+                ),
+                icon: const Icon(
+                  Icons.videocam_outlined,
+                  color: AppColors.primary,
+                  size: 20,
+                ),
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
                 tooltip: 'Add Video',
@@ -778,7 +884,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                       ),
                       child: const Text(
                         'Post',
-                        style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 13),
+                        style: TextStyle(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                        ),
                       ),
                     ),
             ],
@@ -801,7 +911,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                           width: double.infinity,
                           color: Colors.black,
                           child: const Center(
-                            child: Icon(Icons.video_library_rounded, color: Colors.white, size: 32),
+                            child: Icon(
+                              Icons.video_library_rounded,
+                              color: Colors.white,
+                              size: 32,
+                            ),
                           ),
                         ),
                 ),
@@ -821,7 +935,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                         shape: BoxShape.circle,
                       ),
                       padding: const EdgeInsets.all(3),
-                      child: const Icon(Icons.close, color: Colors.white, size: 12),
+                      child: const Icon(
+                        Icons.close,
+                        color: Colors.white,
+                        size: 12,
+                      ),
                     ),
                   ),
                 ),
@@ -835,8 +953,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
 
   Future<String?> _uploadFile(File file, String folder) async {
     try {
-      final fileName = '${DateTime.now().millisecondsSinceEpoch}_${file.path.split('/').last}';
-      final refStorage = FirebaseStorage.instance.ref().child('$folder/$fileName');
+      final fileName =
+          '${DateTime.now().millisecondsSinceEpoch}_${file.path.split('/').last}';
+      final refStorage = FirebaseStorage.instance.ref().child(
+        '$folder/$fileName',
+      );
       final uploadTask = await refStorage.putFile(file);
       final downloadUrl = await uploadTask.ref.getDownloadURL();
       return downloadUrl;
@@ -846,7 +967,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
     }
   }
 
-  Future<void> _pickInlinePostMedia(ImageSource source, String type, UserModel currentUser) async {
+  Future<void> _pickInlinePostMedia(
+    ImageSource source,
+    String type,
+    UserModel currentUser,
+  ) async {
     final picker = ImagePicker();
     if (type == 'image') {
       final image = await picker.pickImage(source: source, imageQuality: 70);
@@ -895,21 +1020,29 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
         if (_inlinePostMediaType == 'video') {
           // Compress video client-side before uploading
           if (context.mounted) {
-            fileToUpload = await VideoCompressionService.compressVideo(context, _inlinePostMediaFile!);
+            fileToUpload = await VideoCompressionService.compressVideo(
+              context,
+              _inlinePostMediaFile!,
+            );
           }
-          
+
           // Generate thumbnail
           final thumbnailFile = await VideoCompress.getFileThumbnail(
             fileToUpload.path,
             quality: 50,
           );
-          final String thumbFileName = '${DateTime.now().millisecondsSinceEpoch}_post_thumb.jpg';
-          final refThumb = FirebaseStorage.instance.ref().child('posts_thumbnail/$thumbFileName');
+          final String thumbFileName =
+              '${DateTime.now().millisecondsSinceEpoch}_post_thumb.jpg';
+          final refThumb = FirebaseStorage.instance.ref().child(
+            'posts_thumbnail/$thumbFileName',
+          );
           final uploadThumbTask = await refThumb.putFile(thumbnailFile);
           thumbnailUrl = await uploadThumbTask.ref.getDownloadURL();
         }
 
-        final folder = _inlinePostMediaType == 'video' ? 'posts_video' : 'posts_image';
+        final folder = _inlinePostMediaType == 'video'
+            ? 'posts_video'
+            : 'posts_image';
         mediaUrl = await _uploadFile(fileToUpload, folder);
         if (mediaUrl == null) {
           throw Exception("Media upload failed");
@@ -935,7 +1068,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
       });
       if (mounted) {
         FocusScope.of(context).unfocus();
-        TopNotificationService.showSuccess(context, 'Post shared successfully!');
+        TopNotificationService.showSuccess(
+          context,
+          'Post shared successfully!',
+        );
         _fetchFeedPostsPage(isRefresh: true);
         ref.read(mediaRefreshProvider.notifier).state++;
       }
@@ -950,13 +1086,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
     }
   }
 
-  Widget _buildPostCard(DocumentSnapshot initialPostDoc, UserModel currentUser) {
+  Widget _buildPostCard(
+    DocumentSnapshot initialPostDoc,
+    UserModel currentUser,
+  ) {
     final data = initialPostDoc.data() as Map<String, dynamic>? ?? {};
     final String displayName = data['displayName'] ?? 'Anonymous';
     final String? photoUrl = data['photoUrl'];
     final String text = data['text'] ?? '';
     final int timestampMillis = parseTimestamp(data['timestamp']);
-    final DateTime? timestampDate = timestampMillis > 0 ? DateTime.fromMillisecondsSinceEpoch(timestampMillis) : null;
+    final DateTime? timestampDate = timestampMillis > 0
+        ? DateTime.fromMillisecondsSinceEpoch(timestampMillis)
+        : null;
     final String? type = data['type'];
     final String? mediaUrl = data['mediaUrl'];
     final String? thumbnailUrl = data['thumbnailUrl'];
@@ -998,8 +1139,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
             children: [
               CircleAvatar(
                 radius: 16,
-                backgroundImage: photoUrl != null ? CachedNetworkImageProvider(photoUrl) : null,
-                child: photoUrl == null ? Text(displayName.isNotEmpty ? displayName[0].toUpperCase() : '?') : null,
+                backgroundImage: photoUrl != null
+                    ? CachedNetworkImageProvider(photoUrl)
+                    : null,
+                child: photoUrl == null
+                    ? Text(
+                        displayName.isNotEmpty
+                            ? displayName[0].toUpperCase()
+                            : '?',
+                      )
+                    : null,
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -1025,8 +1174,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                 ),
               ),
               IconButton(
-                onPressed: () => _showPostOptionsMenu(context, postDoc, currentUser.uid),
-                icon: const Icon(Icons.more_horiz_rounded, color: AppColors.textSecondary),
+                onPressed: () => _showPostOptionsMenu(
+                  context,
+                  initialPostDoc,
+                  currentUser.uid,
+                ),
+                icon: const Icon(
+                  Icons.more_horiz_rounded,
+                  color: AppColors.textSecondary,
+                ),
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
               ),
@@ -1057,7 +1213,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                 stream: initialPostDoc.reference.snapshots(),
                 builder: (context, snapshot) {
                   final postDoc = snapshot.data ?? initialPostDoc;
-                  final postData = postDoc.data() as Map<String, dynamic>? ?? {};
+                  final postData =
+                      postDoc.data() as Map<String, dynamic>? ?? {};
                   final List<dynamic> likes = postData['likes'] ?? [];
                   final isLiked = likes.contains(currentUser.uid);
                   final likeCount = likes.length;
@@ -1075,7 +1232,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                     child: Row(
                       children: [
                         Icon(
-                          isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                          isLiked
+                              ? Icons.favorite_rounded
+                              : Icons.favorite_border_rounded,
                           color: isLiked ? Colors.red : AppColors.textSecondary,
                           size: 20,
                         ),
@@ -1083,7 +1242,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                         Text(
                           '$likeCount',
                           style: TextStyle(
-                            color: isLiked ? Colors.red : AppColors.textSecondary,
+                            color: isLiked
+                                ? Colors.red
+                                : AppColors.textSecondary,
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
                           ),
@@ -1095,7 +1256,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
               ),
               const SizedBox(width: 20),
               GestureDetector(
-                onTap: () => _showCommentsBottomSheet(context, initialPostDoc, currentUser),
+                onTap: () => _showCommentsBottomSheet(
+                  context,
+                  initialPostDoc,
+                  currentUser,
+                ),
                 behavior: HitTestBehavior.opaque,
                 child: Row(
                   children: [
@@ -1106,9 +1271,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                     ),
                     const SizedBox(width: 4),
                     StreamBuilder<QuerySnapshot>(
-                      stream: initialPostDoc.reference.collection('comments').snapshots(),
+                      stream: initialPostDoc.reference
+                          .collection('comments')
+                          .snapshots(),
                       builder: (context, snapshot) {
-                        final count = snapshot.hasData ? snapshot.data!.docs.length : 0;
+                        final count = snapshot.hasData
+                            ? snapshot.data!.docs.length
+                            : 0;
                         return Text(
                           '$count',
                           style: const TextStyle(
@@ -1125,9 +1294,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
               const Spacer(),
               IconButton(
                 onPressed: () {
-                  final link = 'https://callingapp.page.link/post/${postDoc.id}';
+                  final link =
+                      'https://callingapp.page.link/post/${initialPostDoc.id}';
                   Clipboard.setData(ClipboardData(text: link));
-                  TopNotificationService.showSuccess(context, 'Post link copied to clipboard!');
+                  TopNotificationService.showSuccess(
+                    context,
+                    'Post link copied to clipboard!',
+                  );
                 },
                 icon: const Icon(
                   Icons.share_outlined,
@@ -1142,11 +1315,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
         ],
       ),
     );
-      },
-    );
   }
 
-  Widget _buildPostCardMedia(String? type, String mediaUrl, String? thumbnailUrl) {
+  Widget _buildPostCardMedia(
+    String? type,
+    String mediaUrl,
+    String? thumbnailUrl,
+  ) {
     if (type == 'image') {
       return ClipRRect(
         borderRadius: BorderRadius.circular(16),
@@ -1157,13 +1332,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
           placeholder: (context, url) => Container(
             height: 200,
             color: Colors.black12,
-            child: const Center(
-              child: SizedBox(
-                width: 24,
-                height: 24,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-            ),
           ),
           errorWidget: (context, url, error) => Container(
             height: 200,
@@ -1179,14 +1347,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
         borderRadius: BorderRadius.circular(16),
         child: Container(
           color: Colors.black,
-          child: PostVideoPlayer(videoUrl: mediaUrl, thumbnailUrl: thumbnailUrl),
+          child: PostVideoPlayer(
+            videoUrl: mediaUrl,
+            thumbnailUrl: thumbnailUrl,
+          ),
         ),
       );
     }
     return const SizedBox.shrink();
   }
 
-  void _showPostOptionsMenu(BuildContext context, DocumentSnapshot postDoc, String currentUserId) {
+  void _showPostOptionsMenu(
+    BuildContext context,
+    DocumentSnapshot postDoc,
+    String currentUserId,
+  ) {
     final data = postDoc.data() as Map<String, dynamic>? ?? {};
     final String authorId = data['uid'] ?? '';
     final bool isOwner = authorId == currentUserId;
@@ -1219,26 +1394,75 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
               ),
               if (isOwner)
                 ListTile(
-                  leading: const Icon(Icons.delete_outline_rounded, color: Colors.red),
-                  title: const Text('Delete Post', style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600)),
+                  leading: const Icon(
+                    Icons.delete_outline_rounded,
+                    color: Colors.red,
+                  ),
+                  title: const Text(
+                    'Delete Post',
+                    style: TextStyle(
+                      color: Colors.red,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                   onTap: () {
                     Navigator.pop(sheetContext); // close bottom sheet
-                    _confirmDeletePost(outerContext, postDoc); // use outer context for dialog
+                    _confirmDeletePost(
+                      outerContext,
+                      postDoc,
+                    ); // use outer context for dialog
                   },
                 ),
-              ListTile(
-                leading: const Icon(Icons.visibility_off_outlined, color: AppColors.textPrimary),
-                title: const Text('Hide Post', style: TextStyle(color: AppColors.textPrimary)),
-                onTap: () {
-                  Navigator.pop(sheetContext);
-                  setState(() {
-                    _hiddenPostIds.add(postDoc.id);
-                  });
-                  if (outerContext.mounted) {
-                    TopNotificationService.showSuccess(outerContext, 'Post hidden');
-                  }
-                },
-              ),
+              if (isOwner)
+                ListTile(
+                  leading: Icon(
+                    data['isHidden'] == true
+                        ? Icons.visibility_rounded
+                        : Icons.visibility_off_outlined,
+                    color: AppColors.textPrimary,
+                  ),
+                  title: Text(
+                    data['isHidden'] == true ? 'Unhide Post' : 'Archive Post',
+                    style: const TextStyle(color: AppColors.textPrimary),
+                  ),
+                  onTap: () async {
+                    Navigator.pop(sheetContext);
+                    final bool isHidden = data['isHidden'] == true;
+                    await postDoc.reference.update({'isHidden': !isHidden});
+                    ref.read(mediaRefreshProvider.notifier).state++;
+                    if (outerContext.mounted) {
+                      TopNotificationService.showSuccess(
+                        outerContext,
+                        isHidden
+                            ? 'Post unhidden and visible in feed'
+                            : 'Post archived to your profile',
+                      );
+                    }
+                  },
+                )
+              else
+                ListTile(
+                  leading: const Icon(
+                    Icons.visibility_off_outlined,
+                    color: AppColors.textPrimary,
+                  ),
+                  title: const Text(
+                    'Hide Post',
+                    style: TextStyle(color: AppColors.textPrimary),
+                  ),
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    setState(() {
+                      _hiddenPostIds.add(postDoc.id);
+                    });
+                    if (outerContext.mounted) {
+                      TopNotificationService.showSuccess(
+                        outerContext,
+                        'Post hidden',
+                      );
+                    }
+                  },
+                ),
               const SizedBox(height: 12),
             ],
           ),
@@ -1252,12 +1476,23 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Delete Post', style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold)),
-        content: const Text('Are you sure you want to delete this post permanently? This action cannot be undone.'),
+        title: const Text(
+          'Delete Post',
+          style: TextStyle(
+            color: AppColors.textPrimary,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        content: const Text(
+          'Are you sure you want to delete this post permanently? This action cannot be undone.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel', style: TextStyle(color: AppColors.textSecondary)),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
           ),
           TextButton(
             onPressed: () async {
@@ -1267,7 +1502,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                 final mediaUrl = data['mediaUrl'] as String?;
                 if (mediaUrl != null && mediaUrl.isNotEmpty) {
                   try {
-                    final storageRef = FirebaseStorage.instance.refFromURL(mediaUrl);
+                    final storageRef = FirebaseStorage.instance.refFromURL(
+                      mediaUrl,
+                    );
                     await storageRef.delete();
                   } catch (e) {
                     debugPrint('Failed to delete media from storage: $e');
@@ -1284,22 +1521,35 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                   await _fetchFeedPostsPage(isRefresh: true);
                 }
                 if (context.mounted) {
-                  TopNotificationService.showSuccess(context, 'Post deleted successfully');
+                  TopNotificationService.showSuccess(
+                    context,
+                    'Post deleted successfully',
+                  );
                 }
               } catch (e) {
                 if (context.mounted) {
-                  TopNotificationService.showError(context, 'Failed to delete post: $e');
+                  TopNotificationService.showError(
+                    context,
+                    'Failed to delete post: $e',
+                  );
                 }
               }
             },
-            child: const Text('Delete', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+            child: const Text(
+              'Delete',
+              style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+            ),
           ),
         ],
       ),
     );
   }
 
-  void _showCommentsBottomSheet(BuildContext context, DocumentSnapshot postDoc, UserModel currentUser) {
+  void _showCommentsBottomSheet(
+    BuildContext context,
+    DocumentSnapshot postDoc,
+    UserModel currentUser,
+  ) {
     final textController = TextEditingController();
     final focusNode = FocusNode();
     String? replyToCommentId;
@@ -1318,7 +1568,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) {
-
         return StatefulBuilder(
           builder: (context, setState) {
             return Container(
@@ -1352,10 +1601,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                       stream: commentsStream,
                       builder: (context, snapshot) {
                         if (snapshot.hasError) {
-                          return Center(child: Text('Error: ${snapshot.error}'));
+                          return Center(
+                            child: Text('Error: ${snapshot.error}'),
+                          );
                         }
-                        if (snapshot.connectionState == ConnectionState.waiting) {
-                          return const Center(child: CircularProgressIndicator());
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return const Center(
+                            child: CircularProgressIndicator(),
+                          );
                         }
 
                         final commentDocs = snapshot.data?.docs ?? [];
@@ -1363,7 +1617,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                           return const Center(
                             child: Text(
                               'No comments yet. Start the conversation!',
-                              style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                              style: TextStyle(
+                                color: AppColors.textSecondary,
+                                fontSize: 13,
+                              ),
                             ),
                           );
                         }
@@ -1380,20 +1637,27 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                               (data['parentId'] as String).isNotEmpty;
                         }).toList();
 
-                        final Map<String, List<DocumentSnapshot>> repliesByParent = {};
+                        final Map<String, List<DocumentSnapshot>>
+                        repliesByParent = {};
                         for (var reply in replies) {
                           final data = reply.data() as Map<String, dynamic>;
                           final parentId = data['parentId'] as String;
-                          repliesByParent.putIfAbsent(parentId, () => []).add(reply);
+                          repliesByParent
+                              .putIfAbsent(parentId, () => [])
+                              .add(reply);
                         }
 
                         final currentUserUid = currentUser.uid;
-                        final postAuthorUid = (postDoc.data() as Map<String, dynamic>?)?['uid'] as String?;
+                        final postAuthorUid =
+                            (postDoc.data() as Map<String, dynamic>?)?['uid']
+                                as String?;
 
                         final List<Widget> listItems = [];
                         for (var parent in parentComments) {
-                          final parentData = parent.data() as Map<String, dynamic>? ?? {};
-                          final parentLikes = parentData['likes'] as List<dynamic>? ?? [];
+                          final parentData =
+                              parent.data() as Map<String, dynamic>? ?? {};
+                          final parentLikes =
+                              parentData['likes'] as List<dynamic>? ?? [];
                           listItems.add(
                             _buildCommentItem(
                               commentDoc: parent,
@@ -1401,34 +1665,50 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                               isLiked: parentLikes.contains(currentUserUid),
                               likeCount: parentLikes.length,
                               onLikeTap: () {
-                                final updatedLikes = List<String>.from(parentLikes.map((e) => e.toString()));
+                                final updatedLikes = List<String>.from(
+                                  parentLikes.map((e) => e.toString()),
+                                );
                                 if (updatedLikes.contains(currentUserUid)) {
                                   updatedLikes.remove(currentUserUid);
                                 } else {
                                   updatedLikes.add(currentUserUid);
                                 }
-                                parent.reference.update({'likes': updatedLikes});
+                                parent.reference.update({
+                                  'likes': updatedLikes,
+                                });
                               },
-                              onLongPress: () => _showCommentOptions(context, parent, currentUserUid, postAuthorUid),
+                              onLongPress: () => _showCommentOptions(
+                                context,
+                                parent,
+                                currentUserUid,
+                                postAuthorUid,
+                              ),
                               onReplyTap: () {
-                                final name = parentData['displayName'] ?? 'Anonymous';
+                                final name =
+                                    parentData['displayName'] ?? 'Anonymous';
                                 setState(() {
                                   replyToCommentId = parent.id;
                                   replyToUsername = name;
                                   textController.text = '@$name ';
-                                  textController.selection = TextSelection.fromPosition(
-                                    TextPosition(offset: textController.text.length),
-                                  );
+                                  textController.selection =
+                                      TextSelection.fromPosition(
+                                        TextPosition(
+                                          offset: textController.text.length,
+                                        ),
+                                      );
                                 });
                                 focusNode.requestFocus();
                               },
                             ),
                           );
 
-                          final parentReplies = repliesByParent[parent.id] ?? [];
+                          final parentReplies =
+                              repliesByParent[parent.id] ?? [];
                           for (var reply in parentReplies) {
-                            final replyData = reply.data() as Map<String, dynamic>? ?? {};
-                            final replyLikes = replyData['likes'] as List<dynamic>? ?? [];
+                            final replyData =
+                                reply.data() as Map<String, dynamic>? ?? {};
+                            final replyLikes =
+                                replyData['likes'] as List<dynamic>? ?? [];
                             listItems.add(
                               Padding(
                                 padding: const EdgeInsets.only(left: 36.0),
@@ -1438,24 +1718,38 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                                   isLiked: replyLikes.contains(currentUserUid),
                                   likeCount: replyLikes.length,
                                   onLikeTap: () {
-                                    final updatedLikes = List<String>.from(replyLikes.map((e) => e.toString()));
+                                    final updatedLikes = List<String>.from(
+                                      replyLikes.map((e) => e.toString()),
+                                    );
                                     if (updatedLikes.contains(currentUserUid)) {
                                       updatedLikes.remove(currentUserUid);
                                     } else {
                                       updatedLikes.add(currentUserUid);
                                     }
-                                    reply.reference.update({'likes': updatedLikes});
+                                    reply.reference.update({
+                                      'likes': updatedLikes,
+                                    });
                                   },
-                                  onLongPress: () => _showCommentOptions(context, reply, currentUserUid, postAuthorUid),
+                                  onLongPress: () => _showCommentOptions(
+                                    context,
+                                    reply,
+                                    currentUserUid,
+                                    postAuthorUid,
+                                  ),
                                   onReplyTap: () {
-                                    final name = replyData['displayName'] ?? 'Anonymous';
+                                    final name =
+                                        replyData['displayName'] ?? 'Anonymous';
                                     setState(() {
                                       replyToCommentId = parent.id;
                                       replyToUsername = name;
                                       textController.text = '@$name ';
-                                      textController.selection = TextSelection.fromPosition(
-                                        TextPosition(offset: textController.text.length),
-                                      );
+                                      textController.selection =
+                                          TextSelection.fromPosition(
+                                            TextPosition(
+                                              offset:
+                                                  textController.text.length,
+                                            ),
+                                          );
                                     });
                                     focusNode.requestFocus();
                                   },
@@ -1477,7 +1771,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                   if (replyToUsername != null)
                     Container(
                       color: Colors.grey[50],
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 6,
+                      ),
                       child: Row(
                         children: [
                           Text(
@@ -1494,7 +1791,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                                 replyToCommentId = null;
                                 replyToUsername = null;
                                 // Optional: clear the textfield if they cancel the reply and it was just the username
-                                if (textController.text.trim().startsWith('@')) {
+                                if (textController.text.trim().startsWith(
+                                  '@',
+                                )) {
                                   textController.clear();
                                 }
                               });
@@ -1512,52 +1811,70 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                     height: 40,
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      border: Border(bottom: BorderSide(color: Colors.grey[200]!)),
+                      border: Border(
+                        bottom: BorderSide(color: Colors.grey[200]!),
+                      ),
                     ),
                     child: ListView(
                       scrollDirection: Axis.horizontal,
                       padding: const EdgeInsets.symmetric(horizontal: 8),
-                      children: ['❤️', '🔥', '😂', '👏', '😍', '😢', '🙌', '😮'].map((emoji) {
-                        return InkWell(
-                          onTap: () {
-                            final text = textController.text;
-                            final selection = textController.selection;
-                            String newText;
-                            if (selection.isValid) {
-                              newText = text.replaceRange(selection.start, selection.end, emoji);
-                            } else {
-                              newText = text + emoji;
-                            }
-                            textController.text = newText;
-                            textController.selection = TextSelection.fromPosition(
-                              TextPosition(offset: newText.length),
+                      children: ['❤️', '🔥', '😂', '👏', '😍', '😢', '🙌', '😮']
+                          .map((emoji) {
+                            return InkWell(
+                              onTap: () {
+                                final text = textController.text;
+                                final selection = textController.selection;
+                                String newText;
+                                if (selection.isValid) {
+                                  newText = text.replaceRange(
+                                    selection.start,
+                                    selection.end,
+                                    emoji,
+                                  );
+                                } else {
+                                  newText = text + emoji;
+                                }
+                                textController.text = newText;
+                                textController.selection =
+                                    TextSelection.fromPosition(
+                                      TextPosition(offset: newText.length),
+                                    );
+                              },
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 8,
+                                ),
+                                child: Text(
+                                  emoji,
+                                  style: const TextStyle(fontSize: 18),
+                                ),
+                              ),
                             );
-                          },
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                            child: Text(
-                              emoji,
-                              style: const TextStyle(fontSize: 18),
-                            ),
-                          ),
-                        );
-                      }).toList(),
+                          })
+                          .toList(),
                     ),
                   ),
                   SafeArea(
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
                       child: Row(
                         children: [
                           CircleAvatar(
                             radius: 14,
                             backgroundImage: currentUser.photoUrl != null
-                                ? CachedNetworkImageProvider(currentUser.photoUrl!)
+                                ? CachedNetworkImageProvider(
+                                    currentUser.photoUrl!,
+                                  )
                                 : null,
                             child: currentUser.photoUrl == null
                                 ? Text(
                                     currentUser.displayName.isNotEmpty
-                                        ? currentUser.displayName[0].toUpperCase()
+                                        ? currentUser.displayName[0]
+                                              .toUpperCase()
                                         : '?',
                                     style: const TextStyle(fontSize: 10),
                                   )
@@ -1571,12 +1888,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                               maxLines: null,
                               decoration: const InputDecoration(
                                 hintText: 'Add a comment...',
-                                hintStyle: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                                hintStyle: TextStyle(
+                                  color: AppColors.textSecondary,
+                                  fontSize: 13,
+                                ),
                                 border: InputBorder.none,
                                 isDense: true,
-                                contentPadding: EdgeInsets.symmetric(vertical: 8),
+                                contentPadding: EdgeInsets.symmetric(
+                                  vertical: 8,
+                                ),
                               ),
-                              style: const TextStyle(fontSize: 13, color: AppColors.textPrimary),
+                              style: const TextStyle(
+                                fontSize: 13,
+                                color: AppColors.textPrimary,
+                              ),
                             ),
                           ),
                           TextButton(
@@ -1601,11 +1926,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                               focusNode.unfocus();
 
                               try {
-                                await postDoc.reference.collection('comments').add(commentData);
+                                await postDoc.reference
+                                    .collection('comments')
+                                    .add(commentData);
                               } catch (e) {
                                 if (context.mounted) {
                                   TopNotificationService.showError(
-                                      context, 'Failed to add comment: $e');
+                                    context,
+                                    'Failed to add comment: $e',
+                                  );
                                 }
                               }
                             },
@@ -1643,7 +1972,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
     final data = commentDoc.data() as Map<String, dynamic>? ?? {};
     final commentAuthorUid = data['uid'] as String?;
 
-    final canDelete = (currentUserUid == commentAuthorUid) || (currentUserUid == postAuthorUid);
+    final canDelete =
+        (currentUserUid == commentAuthorUid) ||
+        (currentUserUid == postAuthorUid);
 
     showModalBottomSheet(
       context: context,
@@ -1667,8 +1998,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
               ),
               if (canDelete)
                 ListTile(
-                  leading: const Icon(Icons.delete_outline_rounded, color: Colors.red),
-                  title: const Text('Delete Comment', style: TextStyle(color: Colors.red)),
+                  leading: const Icon(
+                    Icons.delete_outline_rounded,
+                    color: Colors.red,
+                  ),
+                  title: const Text(
+                    'Delete Comment',
+                    style: TextStyle(color: Colors.red),
+                  ),
                   onTap: () {
                     commentDoc.reference.delete();
                     Navigator.pop(context);
@@ -1676,11 +2013,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                 ),
               if (!canDelete) ...[
                 ListTile(
-                  leading: const Icon(Icons.report_gmailerrorred_rounded, color: Colors.red),
-                  title: const Text('Report', style: TextStyle(color: Colors.red)),
+                  leading: const Icon(
+                    Icons.report_gmailerrorred_rounded,
+                    color: Colors.red,
+                  ),
+                  title: const Text(
+                    'Report',
+                    style: TextStyle(color: Colors.red),
+                  ),
                   onTap: () {
                     Navigator.pop(context);
-                    TopNotificationService.showSuccess(context, 'Comment reported');
+                    TopNotificationService.showSuccess(
+                      context,
+                      'Comment reported',
+                    );
                   },
                 ),
                 ListTile(
@@ -1713,7 +2059,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
     final String? photoUrl = data['photoUrl'];
     final String text = data['text'] ?? '';
     final int timestampMillis = parseTimestamp(data['timestamp']);
-    final DateTime? timestampDate = timestampMillis > 0 ? DateTime.fromMillisecondsSinceEpoch(timestampMillis) : null;
+    final DateTime? timestampDate = timestampMillis > 0
+        ? DateTime.fromMillisecondsSinceEpoch(timestampMillis)
+        : null;
 
     String timeAgo = 'Just now';
     if (timestampDate != null) {
@@ -1742,10 +2090,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
           children: [
             CircleAvatar(
               radius: isReply ? 12 : 14,
-              backgroundImage: photoUrl != null ? CachedNetworkImageProvider(photoUrl) : null,
+              backgroundImage: photoUrl != null
+                  ? CachedNetworkImageProvider(photoUrl)
+                  : null,
               child: photoUrl == null
                   ? Text(
-                      displayName.isNotEmpty ? displayName[0].toUpperCase() : '?',
+                      displayName.isNotEmpty
+                          ? displayName[0].toUpperCase()
+                          : '?',
                       style: TextStyle(fontSize: isReply ? 8 : 10),
                     )
                   : null,
@@ -1757,7 +2109,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                 children: [
                   RichText(
                     text: TextSpan(
-                      style: const TextStyle(color: AppColors.textPrimary, fontSize: 12),
+                      style: const TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 12,
+                      ),
                       children: [
                         TextSpan(
                           text: '$displayName ',
@@ -1780,7 +2135,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                     children: [
                       Text(
                         timeAgo,
-                        style: const TextStyle(color: AppColors.textSecondary, fontSize: 10),
+                        style: const TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 10,
+                        ),
                       ),
                       const SizedBox(width: 12),
                       GestureDetector(
@@ -1805,7 +2163,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                 GestureDetector(
                   onTap: onLikeTap,
                   child: Icon(
-                    isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                    isLiked
+                        ? Icons.favorite_rounded
+                        : Icons.favorite_border_rounded,
                     size: 14,
                     color: isLiked ? Colors.red : AppColors.textSecondary,
                   ),
@@ -1814,9 +2174,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                   const SizedBox(height: 2),
                   Text(
                     '$likeCount',
-                    style: const TextStyle(color: AppColors.textSecondary, fontSize: 10),
+                    style: const TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 10,
+                    ),
                   ),
-                ]
+                ],
               ],
             ),
           ],
@@ -1834,35 +2197,42 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
         'videoUrl': data['videoUrl'] ?? '',
         'thumbnail': data['thumbnail'] ?? '',
         'caption': data['caption'] ?? '',
-        'creatorName': data['displayName'] ?? data['creatorName'] ?? 'Anonymous',
+        'creatorName':
+            data['displayName'] ?? data['creatorName'] ?? 'Anonymous',
         'creatorAvatar': data['photoUrl'] ?? data['creatorAvatar'] ?? '',
       });
     }
     if (reels.isEmpty && !_isLoadingReels) {
       reels.addAll([
         {
-          'videoUrl': 'https://flutter.github.io/assets-for-api-docs/assets/videos/bee.mp4',
+          'videoUrl':
+              'https://flutter.github.io/assets-for-api-docs/assets/videos/bee.mp4',
           'thumbnail': '',
-          'caption': 'Bees working hard! Nature is beautiful. #nature #bees #macro',
+          'caption':
+              'Bees working hard! Nature is beautiful. #nature #bees #macro',
           'creatorName': '@nature_observer',
           'creatorAvatar': '',
         },
         {
-          'videoUrl': 'https://flutter.github.io/assets-for-api-docs/assets/videos/butterfly.mp4',
+          'videoUrl':
+              'https://flutter.github.io/assets-for-api-docs/assets/videos/butterfly.mp4',
           'thumbnail': '',
-          'caption': 'Elegant butterfly taking off! #butterfly #garden #insects',
+          'caption':
+              'Elegant butterfly taking off! #butterfly #garden #insects',
           'creatorName': '@macro_shots',
           'creatorAvatar': '',
         },
         {
-          'videoUrl': 'https://raw.githubusercontent.com/flutter/assets-for-api-docs/master/assets/videos/bee.mp4',
+          'videoUrl':
+              'https://raw.githubusercontent.com/flutter/assets-for-api-docs/master/assets/videos/bee.mp4',
           'caption': 'High quality bee macro video close-up. #bees #explore',
           'creatorName': '@bee_keeper',
           'creatorAvatar': '',
           'thumbnail': '',
         },
         {
-          'videoUrl': 'https://raw.githubusercontent.com/flutter/assets-for-api-docs/master/assets/videos/butterfly.mp4',
+          'videoUrl':
+              'https://raw.githubusercontent.com/flutter/assets-for-api-docs/master/assets/videos/butterfly.mp4',
           'caption': 'Butterfly flying around flowers. #spring #flowers',
           'creatorName': '@spring_life',
           'creatorAvatar': '',
@@ -1875,6 +2245,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
 
   Widget _buildReelsTab(UserModel currentUser) {
     final reels = _getActiveReelsData();
+
+    if (reels.isEmpty && (_isLoadingReels || _hasMoreReels)) {
+      return const Scaffold(
+        backgroundColor: Colors.black,
+        body: Center(
+          child: SizedBox.shrink(),
+        ),
+      );
+    }
 
     if (reels.isEmpty) {
       return const Scaffold(
@@ -1900,27 +2279,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
       );
     }
 
-    if (reels.isEmpty && _isLoadingReels) {
-      return const Scaffold(
-        backgroundColor: Colors.black,
-        body: Center(
-          child: RepaintBoundary(
-            child: CircularProgressIndicator(color: Colors.white),
-          ),
-        ),
-      );
-    }
-
     return Scaffold(
       backgroundColor: Colors.black,
       body: PageView.builder(
         controller: _reelsPageController,
         scrollDirection: Axis.vertical,
+        physics: const PageScrollPhysics(parent: ClampingScrollPhysics()),
         itemCount: reels.length,
         onPageChanged: (index) {
           // ── Immediately silence the PREVIOUS active reel ──────────────
           final prev = _reelsControllers[_activeReelIndex];
-          if (prev != null && prev.value.isInitialized && prev.value.isPlaying) {
+          if (prev != null &&
+              prev.value.isInitialized &&
+              prev.value.isPlaying) {
             prev.pause();
           }
           setState(() {
@@ -1934,28 +2305,39 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
         itemBuilder: (context, index) {
           final reel = reels[index];
           final controller = _reelsControllers[index];
-          return ReelsPlayerItem(
-            key: ValueKey('reel_$index'),
-            reelDoc: reel['doc'],
-            currentUser: currentUser,
-            videoUrl: reel['videoUrl']!,
-            thumbnailUrl: reel['thumbnail'],
-            caption: reel['caption']!,
-            creatorName: reel['creatorName']!,
-            creatorAvatar: reel['creatorAvatar'],
-            isActive: index == _activeReelIndex,
-            controller: controller,
-            onCommentTap: reel['doc'] != null
-                ? () => _showCommentsBottomSheet(context, reel['doc'], currentUser)
-                : null,
+          return RepaintBoundary(
+            child: ReelsPlayerItem(
+              key: ValueKey('reel_$index'),
+              reelDoc: reel['doc'],
+              currentUser: currentUser,
+              videoUrl: reel['videoUrl']!,
+              thumbnailUrl: reel['thumbnail'],
+              caption: reel['caption']!,
+              creatorName: reel['creatorName']!,
+              creatorAvatar: reel['creatorAvatar'],
+              isActive: index == _activeReelIndex,
+              controller: controller,
+              onCommentTap: reel['doc'] != null
+                  ? () => _showCommentsBottomSheet(
+                      context,
+                      reel['doc'],
+                      currentUser,
+                    )
+                  : null,
+            ),
           );
         },
       ),
     );
   }
 
-  Widget _buildHeader(BuildContext context, WidgetRef ref, UserModel currentUser) {
-    if (_currentTabIndex == 0) {
+  Widget _buildHeader(
+    BuildContext context,
+    WidgetRef ref,
+    UserModel currentUser,
+    int tabIndex,
+  ) {
+    if (tabIndex == 0) {
       return StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('stories')
@@ -1965,31 +2347,31 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
           final List<DocumentSnapshot> allDocs = snapshot.data?.docs ?? [];
           final now = DateTime.now().millisecondsSinceEpoch;
           final cutoff = now - (24 * 60 * 60 * 1000); // 24 hours ago
-          
+
           // Group stories by creator UID
           final Map<String, List<Map<String, dynamic>>> grouped = {};
           for (var doc in allDocs) {
             final data = doc.data() as Map<String, dynamic>? ?? {};
             final uid = data['uid'] ?? '';
             final timestamp = parseTimestamp(data['timestamp']);
-            
+
             // Skip stories older than 24 hours
             if (timestamp > 0 && timestamp < cutoff) continue;
-            
+
             if (uid.isEmpty) continue;
-            if (uid != currentUser.uid && !currentUser.following.contains(uid)) continue;
+            if (uid != currentUser.uid && !currentUser.following.contains(uid))
+              continue;
             if (!grouped.containsKey(uid)) {
               grouped[uid] = [];
             }
-            grouped[uid]!.add({
-              'id': doc.id,
-              ...data,
-            });
+            grouped[uid]!.add({'id': doc.id, ...data});
           }
 
           final myStories = grouped[currentUser.uid] ?? [];
-          final otherUsersUids = grouped.keys.where((uid) => uid != currentUser.uid).toList();
-          
+          final otherUsersUids = grouped.keys
+              .where((uid) => uid != currentUser.uid)
+              .toList();
+
           // Sort other users by the timestamp of their newest story (first in their list)
           otherUsersUids.sort((a, b) {
             final tA = parseTimestamp(grouped[a]!.first['timestamp']);
@@ -1999,7 +2381,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
 
           return Container(
             height: 110,
-            padding: const EdgeInsets.only(top: 14.0, bottom: 6.0, left: 16.0, right: 16.0),
+            padding: const EdgeInsets.only(
+              top: 14.0,
+              bottom: 6.0,
+              left: 16.0,
+              right: 16.0,
+            ),
             child: Row(
               children: [
                 Expanded(
@@ -2035,25 +2422,51 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                                         shape: BoxShape.circle,
                                         gradient: hasStories
                                             ? const LinearGradient(
-                                                colors: [Color(0xFFF9CE34), Color(0xFFEE2A7B), Color(0xFF6228D7)],
+                                                colors: [
+                                                  Color(0xFFF9CE34),
+                                                  Color(0xFFEE2A7B),
+                                                  Color(0xFF6228D7),
+                                                ],
                                                 begin: Alignment.topLeft,
                                                 end: Alignment.bottomRight,
                                               )
                                             : null,
                                         border: hasStories
                                             ? null
-                                            : Border.all(color: Colors.grey.shade300, width: 1.5),
+                                            : Border.all(
+                                                color: Colors.grey.shade300,
+                                                width: 1.5,
+                                              ),
                                       ),
                                       child: Container(
                                         padding: const EdgeInsets.all(2),
-                                        decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                                        decoration: const BoxDecoration(
+                                          color: Colors.white,
+                                          shape: BoxShape.circle,
+                                        ),
                                         child: CircleAvatar(
                                           radius: 22,
-                                          backgroundImage: currentUser.photoUrl != null && currentUser.photoUrl!.isNotEmpty
-                                              ? CachedNetworkImageProvider(currentUser.photoUrl!)
+                                          backgroundImage:
+                                              currentUser.photoUrl != null &&
+                                                  currentUser
+                                                      .photoUrl!
+                                                      .isNotEmpty
+                                              ? CachedNetworkImageProvider(
+                                                  currentUser.photoUrl!,
+                                                )
                                               : null,
-                                          child: (currentUser.photoUrl == null || currentUser.photoUrl!.isEmpty)
-                                              ? Text(currentUser.displayName.isNotEmpty ? currentUser.displayName[0].toUpperCase() : '?')
+                                          child:
+                                              (currentUser.photoUrl == null ||
+                                                  currentUser.photoUrl!.isEmpty)
+                                              ? Text(
+                                                  currentUser
+                                                          .displayName
+                                                          .isNotEmpty
+                                                      ? currentUser
+                                                            .displayName[0]
+                                                            .toUpperCase()
+                                                      : '?',
+                                                )
                                               : null,
                                         ),
                                       ),
@@ -2063,15 +2476,28 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                                       bottom: 0,
                                       child: GestureDetector(
                                         onTap: () {
-                                          _showCreateStoryDialog(context, currentUser);
+                                          _showCreateStoryDialog(
+                                            context,
+                                            currentUser,
+                                          );
                                         },
                                         child: Container(
                                           padding: const EdgeInsets.all(2),
-                                          decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                                          decoration: const BoxDecoration(
+                                            color: Colors.white,
+                                            shape: BoxShape.circle,
+                                          ),
                                           child: Container(
-                                            decoration: const BoxDecoration(color: Color(0xFFEC4899), shape: BoxShape.circle),
+                                            decoration: const BoxDecoration(
+                                              color: Color(0xFFEC4899),
+                                              shape: BoxShape.circle,
+                                            ),
                                             padding: const EdgeInsets.all(2),
-                                            child: const Icon(Icons.add, color: Colors.white, size: 10),
+                                            child: const Icon(
+                                              Icons.add,
+                                              color: Colors.white,
+                                              size: 10,
+                                            ),
                                           ),
                                         ),
                                       ),
@@ -2083,7 +2509,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                                   width: 56,
                                   child: Text(
                                     'Your Story',
-                                    style: TextStyle(fontSize: 10, color: AppColors.textSecondary, fontWeight: FontWeight.bold, overflow: TextOverflow.ellipsis),
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      color: AppColors.textSecondary,
+                                      fontWeight: FontWeight.bold,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
                                     textAlign: TextAlign.center,
                                   ),
                                 ),
@@ -2097,7 +2528,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                       final creatorUid = otherUsersUids[index - 1];
                       final stories = grouped[creatorUid]!;
                       final firstStory = stories.first;
-                      final String displayName = firstStory['displayName'] ?? 'User';
+                      final String displayName =
+                          firstStory['displayName'] ?? 'User';
                       final String? photoUrl = firstStory['photoUrl'];
 
                       return GestureDetector(
@@ -2116,21 +2548,34 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                                 decoration: const BoxDecoration(
                                   shape: BoxShape.circle,
                                   gradient: LinearGradient(
-                                    colors: [Color(0xFFF9CE34), Color(0xFFEE2A7B), Color(0xFF6228D7)],
+                                    colors: [
+                                      Color(0xFFF9CE34),
+                                      Color(0xFFEE2A7B),
+                                      Color(0xFF6228D7),
+                                    ],
                                     begin: Alignment.topLeft,
                                     end: Alignment.bottomRight,
                                   ),
                                 ),
                                 child: Container(
                                   padding: const EdgeInsets.all(2),
-                                  decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                                  decoration: const BoxDecoration(
+                                    color: Colors.white,
+                                    shape: BoxShape.circle,
+                                  ),
                                   child: CircleAvatar(
                                     radius: 22,
-                                    backgroundImage: photoUrl != null && photoUrl.isNotEmpty
+                                    backgroundImage:
+                                        photoUrl != null && photoUrl.isNotEmpty
                                         ? CachedNetworkImageProvider(photoUrl)
                                         : null,
-                                    child: (photoUrl == null || photoUrl.isEmpty)
-                                        ? Text(displayName.isNotEmpty ? displayName[0].toUpperCase() : '?')
+                                    child:
+                                        (photoUrl == null || photoUrl.isEmpty)
+                                        ? Text(
+                                            displayName.isNotEmpty
+                                                ? displayName[0].toUpperCase()
+                                                : '?',
+                                          )
                                         : null,
                                   ),
                                 ),
@@ -2140,7 +2585,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                                 width: 56,
                                 child: Text(
                                   displayName,
-                                  style: const TextStyle(fontSize: 10, color: AppColors.textSecondary, overflow: TextOverflow.ellipsis),
+                                  style: const TextStyle(
+                                    fontSize: 10,
+                                    color: AppColors.textSecondary,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                                   textAlign: TextAlign.center,
                                 ),
                               ),
@@ -2161,7 +2610,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
     String title = 'Messages';
     String subtitle = 'Connect with friends';
 
-    if (_currentTabIndex == 3) {
+    if (tabIndex == 3) {
       title = 'My Profile';
       subtitle = 'Manage details';
     }
@@ -2176,26 +2625,38 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
             children: [
               Text(
                 title,
-                style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                style: const TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary,
+                ),
               ),
               Text(
                 subtitle,
-                style: const TextStyle(fontSize: 14, color: AppColors.textSecondary),
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: AppColors.textSecondary,
+                ),
               ),
             ],
           ),
           Row(
             children: [
               _buildNotificationBadge(ref, currentUser.uid),
-              if (_currentTabIndex == 3)
+              if (tabIndex == 3)
                 Padding(
                   padding: const EdgeInsets.only(left: 12.0),
                   child: IconButton(
-                    icon: const Icon(Icons.settings_outlined, color: AppColors.textPrimary),
+                    icon: const Icon(
+                      Icons.settings_outlined,
+                      color: AppColors.textPrimary,
+                    ),
                     onPressed: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                        MaterialPageRoute(
+                          builder: (_) => const SettingsScreen(),
+                        ),
                       );
                     },
                   ),
@@ -2221,7 +2682,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
             final permission = type == 'video'
                 ? (Platform.isAndroid ? Permission.videos : Permission.photos)
                 : Permission.photos;
-                
+
             final hasPermission = await _checkAndRequestPermission(permission);
             if (!hasPermission) {
               if (context.mounted) {
@@ -2235,7 +2696,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
 
             final picker = ImagePicker();
             if (type == 'image') {
-              final image = await picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
+              final image = await picker.pickImage(
+                source: ImageSource.gallery,
+                imageQuality: 70,
+              );
               if (image != null && context.mounted) {
                 final captionText = controller.text;
                 Navigator.pop(context); // Close create post dialog
@@ -2269,10 +2733,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
           return AlertDialog(
             backgroundColor: Colors.white,
             surfaceTintColor: Colors.white,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(28),
+            ),
             title: const Text(
-              'Create New Post', 
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22, color: AppColors.textPrimary)
+              'Create New Post',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 22,
+                color: AppColors.textPrimary,
+              ),
             ),
             contentPadding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
             content: SingleChildScrollView(
@@ -2285,7 +2755,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(color: Colors.grey.shade200),
                     ),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 4,
+                    ),
                     child: TextField(
                       controller: controller,
                       maxLines: 4,
@@ -2305,7 +2778,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(16),
                             boxShadow: [
-                              BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 5)),
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.05),
+                                blurRadius: 10,
+                                offset: const Offset(0, 5),
+                              ),
                             ],
                           ),
                           child: ClipRRect(
@@ -2322,7 +2799,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                                     width: double.infinity,
                                     color: Colors.black87,
                                     child: const Center(
-                                      child: Icon(Icons.play_circle_fill, color: Colors.white, size: 56),
+                                      child: Icon(
+                                        Icons.play_circle_fill,
+                                        color: Colors.white,
+                                        size: 56,
+                                      ),
                                     ),
                                   ),
                           ),
@@ -2343,7 +2824,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                                 shape: BoxShape.circle,
                               ),
                               padding: const EdgeInsets.all(6),
-                              child: const Icon(Icons.close, color: Colors.white, size: 16),
+                              child: const Icon(
+                                Icons.close,
+                                color: Colors.white,
+                                size: 16,
+                              ),
                             ),
                           ),
                         ),
@@ -2361,17 +2846,41 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                           onPressed: () => pickMedia('image'),
                           backgroundColor: AppColors.primary.withOpacity(0.1),
                           side: BorderSide.none,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          avatar: const Icon(Icons.image_rounded, color: AppColors.primary, size: 18),
-                          label: const Text('Photo', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w600)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          avatar: const Icon(
+                            Icons.image_rounded,
+                            color: AppColors.primary,
+                            size: 18,
+                          ),
+                          label: const Text(
+                            'Photo',
+                            style: TextStyle(
+                              color: AppColors.primary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                         ),
                         ActionChip(
                           onPressed: () => pickMedia('video'),
                           backgroundColor: AppColors.secondary.withOpacity(0.1),
                           side: BorderSide.none,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          avatar: const Icon(Icons.videocam_rounded, color: AppColors.secondary, size: 18),
-                          label: const Text('Video', style: TextStyle(color: AppColors.secondary, fontWeight: FontWeight.w600)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          avatar: const Icon(
+                            Icons.videocam_rounded,
+                            color: AppColors.secondary,
+                            size: 18,
+                          ),
+                          label: const Text(
+                            'Video',
+                            style: TextStyle(
+                              color: AppColors.secondary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                         ),
                       ],
                     ),
@@ -2379,12 +2888,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                 ],
               ),
             ),
-            actionsPadding: const EdgeInsets.only(right: 24, bottom: 20, left: 24, top: 8),
+            actionsPadding: const EdgeInsets.only(
+              right: 24,
+              bottom: 20,
+              left: 24,
+              top: 8,
+            ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                style: TextButton.styleFrom(foregroundColor: AppColors.textSecondary),
-                child: const Text('Cancel', style: TextStyle(fontWeight: FontWeight.w600)),
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.textSecondary,
+                ),
+                child: const Text(
+                  'Cancel',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
               ),
               isPostingLocal
                   ? const Padding(
@@ -2397,87 +2916,129 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                     )
                   : Container(
                       decoration: BoxDecoration(
-                        gradient: const LinearGradient(colors: [AppColors.primary, AppColors.secondary]),
+                        gradient: const LinearGradient(
+                          colors: [AppColors.primary, AppColors.secondary],
+                        ),
                         borderRadius: BorderRadius.circular(20),
                         boxShadow: [
-                          BoxShadow(color: AppColors.primary.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 4)),
+                          BoxShadow(
+                            color: AppColors.primary.withOpacity(0.3),
+                            blurRadius: 8,
+                            offset: const Offset(0, 4),
+                          ),
                         ],
                       ),
                       child: ElevatedButton(
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.transparent,
                           shadowColor: Colors.transparent,
-                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 10,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
+                          ),
                         ),
                         onPressed: () async {
                           final text = controller.text.trim();
                           if (text.isEmpty && selectedMediaFile == null) return;
-                        
-                        setDialogState(() {
-                          isPostingLocal = true;
-                        });
-                        try {
-                          String? finalMediaUrl;
-                          String? finalMediaType;
-                          String? thumbnailUrl;
 
-                          if (selectedMediaFile != null) {
-                            File fileToUpload = selectedMediaFile!;
-                            if (selectedMediaType == 'video') {
-                              if (context.mounted) {
-                                fileToUpload = await VideoCompressionService.compressVideo(context, selectedMediaFile!);
-                              }
-                              
-                              // Generate thumbnail
-                              final thumbnailFile = await VideoCompress.getFileThumbnail(
-                                fileToUpload.path,
-                                quality: 50,
-                              );
-                              final String thumbFileName = '${DateTime.now().millisecondsSinceEpoch}_post_thumb.jpg';
-                              final refThumb = FirebaseStorage.instance.ref().child('posts_thumbnail/$thumbFileName');
-                              final uploadThumbTask = await refThumb.putFile(thumbnailFile);
-                              thumbnailUrl = await uploadThumbTask.ref.getDownloadURL();
-                            }
-                            
-                            final folder = selectedMediaType == 'video' ? 'posts_video' : 'posts_image';
-                            finalMediaUrl = await _uploadFile(fileToUpload, folder);
-                            if (finalMediaUrl == null) {
-                              throw Exception("Media upload failed");
-                            }
-                            finalMediaType = selectedMediaType;
-                          }
-
-                          await FirebaseFirestore.instance.collection('posts').add({
-                            'uid': currentUser.uid,
-                            'displayName': currentUser.displayName,
-                            'photoUrl': currentUser.photoUrl,
-                            'text': text,
-                            'mediaUrl': finalMediaUrl,
-                            'thumbnailUrl': thumbnailUrl,
-                            'type': finalMediaType,
-                            'timestamp': FieldValue.serverTimestamp(),
-                            'likes': <String>[],
-                          });
-                          
-                          if (context.mounted) {
-                            Navigator.pop(context);
-                            TopNotificationService.showSuccess(context, 'Post shared successfully!');
-                            _fetchFeedPostsPage(isRefresh: true);
-                            ref.read(mediaRefreshProvider.notifier).state++;
-                          }
-                        } catch (e) {
-                          if (context.mounted) {
-                            TopNotificationService.showError(context, 'Failed to post: $e');
-                          }
                           setDialogState(() {
-                            isPostingLocal = false;
+                            isPostingLocal = true;
                           });
-                        }
-                      },
-                      child: const Text('Share', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 15)),
+                          try {
+                            String? finalMediaUrl;
+                            String? finalMediaType;
+                            String? thumbnailUrl;
+
+                            if (selectedMediaFile != null) {
+                              File fileToUpload = selectedMediaFile!;
+                              if (selectedMediaType == 'video') {
+                                if (context.mounted) {
+                                  fileToUpload =
+                                      await VideoCompressionService.compressVideo(
+                                        context,
+                                        selectedMediaFile!,
+                                      );
+                                }
+
+                                // Generate thumbnail
+                                final thumbnailFile =
+                                    await VideoCompress.getFileThumbnail(
+                                      fileToUpload.path,
+                                      quality: 50,
+                                    );
+                                final String thumbFileName =
+                                    '${DateTime.now().millisecondsSinceEpoch}_post_thumb.jpg';
+                                final refThumb = FirebaseStorage.instance
+                                    .ref()
+                                    .child('posts_thumbnail/$thumbFileName');
+                                final uploadThumbTask = await refThumb.putFile(
+                                  thumbnailFile,
+                                );
+                                thumbnailUrl = await uploadThumbTask.ref
+                                    .getDownloadURL();
+                              }
+
+                              final folder = selectedMediaType == 'video'
+                                  ? 'posts_video'
+                                  : 'posts_image';
+                              finalMediaUrl = await _uploadFile(
+                                fileToUpload,
+                                folder,
+                              );
+                              if (finalMediaUrl == null) {
+                                throw Exception("Media upload failed");
+                              }
+                              finalMediaType = selectedMediaType;
+                            }
+
+                            await FirebaseFirestore.instance
+                                .collection('posts')
+                                .add({
+                                  'uid': currentUser.uid,
+                                  'displayName': currentUser.displayName,
+                                  'photoUrl': currentUser.photoUrl,
+                                  'text': text,
+                                  'mediaUrl': finalMediaUrl,
+                                  'thumbnailUrl': thumbnailUrl,
+                                  'type': finalMediaType,
+                                  'timestamp': FieldValue.serverTimestamp(),
+                                  'likes': <String>[],
+                                });
+
+                            if (context.mounted) {
+                              Navigator.pop(context);
+                              TopNotificationService.showSuccess(
+                                context,
+                                'Post shared successfully!',
+                              );
+                              _fetchFeedPostsPage(isRefresh: true);
+                              ref.read(mediaRefreshProvider.notifier).state++;
+                            }
+                          } catch (e) {
+                            if (context.mounted) {
+                              TopNotificationService.showError(
+                                context,
+                                'Failed to post: $e',
+                              );
+                            }
+                            setDialogState(() {
+                              isPostingLocal = false;
+                            });
+                          }
+                        },
+                        child: const Text(
+                          'Share',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                            fontSize: 15,
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
             ],
           );
         },
@@ -2490,18 +3051,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
     if (status.isGranted || status.isLimited) {
       return true;
     }
-    if (Platform.isAndroid && (permission == Permission.photos || permission == Permission.videos)) {
+    if (Platform.isAndroid &&
+        (permission == Permission.photos || permission == Permission.videos)) {
       final storageStatus = await Permission.storage.request();
       return storageStatus.isGranted;
     }
     return false;
   }
 
-  void _showCreateReelDialog(BuildContext context, UserModel currentUser) async {
+  void _showCreateReelDialog(
+    BuildContext context,
+    UserModel currentUser,
+  ) async {
     final hasPermission = await _checkAndRequestPermission(
       Platform.isAndroid ? Permission.videos : Permission.photos,
     );
-    
+
     if (hasPermission) {
       final picker = ImagePicker();
       final video = await picker.pickVideo(source: ImageSource.gallery);
@@ -2528,17 +3093,26 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
       }
     } else {
       if (context.mounted) {
-        TopNotificationService.showError(context, 'Video permission is required to upload reels.');
+        TopNotificationService.showError(
+          context,
+          'Video permission is required to upload reels.',
+        );
       }
     }
   }
 
-  void _showCreateStoryDialog(BuildContext context, UserModel currentUser) async {
+  void _showCreateStoryDialog(
+    BuildContext context,
+    UserModel currentUser,
+  ) async {
     final hasPermission = await _checkAndRequestPermission(Permission.photos);
-    
+
     if (hasPermission) {
       final picker = ImagePicker();
-      final image = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
+      final image = await picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 80,
+      );
       if (image != null && context.mounted) {
         _pauseActiveReel();
         await Navigator.push(
@@ -2555,25 +3129,29 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
       }
     } else {
       if (context.mounted) {
-        TopNotificationService.showError(context, 'Photo permission is required to post stories.');
+        TopNotificationService.showError(
+          context,
+          'Photo permission is required to post stories.',
+        );
       }
     }
   }
 
-
-
-  void _showStoryViewer(BuildContext context, List<Map<String, dynamic>> stories) {
+  void _showStoryViewer(
+    BuildContext context,
+    List<Map<String, dynamic>> stories,
+  ) {
     if (stories.isEmpty) return;
-    _pauseActiveReel();
+    ref.read(isStoryDialogOpenProvider.notifier).state = true;
     showDialog(
       context: context,
       barrierColor: Colors.black,
       builder: (context) {
-        return StoryViewerDialog(
-          stories: stories,
-        );
+        return StoryViewerDialog(stories: stories);
       },
-    );
+    ).then((_) {
+      if (mounted) ref.read(isStoryDialogOpenProvider.notifier).state = false;
+    });
   }
 
   Widget _buildHeaderAction(IconData icon, VoidCallback onTap) {
@@ -2584,7 +3162,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
         decoration: BoxDecoration(
           color: Colors.white,
           shape: BoxShape.circle,
-          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10)],
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 10,
+            ),
+          ],
         ),
         child: Icon(icon, color: AppColors.primary, size: 22),
       ),
@@ -2599,7 +3182,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
         children: [
           _buildHeaderAction(Icons.notifications_none, () {
             _pauseActiveReel();
-            Navigator.push(context, MaterialPageRoute(builder: (_) => const NotificationScreen()));
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const NotificationScreen()),
+            );
           }),
           if (notifCount > 0)
             Positioned(
@@ -2607,11 +3193,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
               top: -2,
               child: Container(
                 padding: const EdgeInsets.all(4),
-                decoration: const BoxDecoration(color: AppColors.error, shape: BoxShape.circle),
+                decoration: const BoxDecoration(
+                  color: AppColors.error,
+                  shape: BoxShape.circle,
+                ),
                 constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
                 child: Text(
                   notifCount > 9 ? '9+' : '$notifCount',
-                  style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 8,
+                    fontWeight: FontWeight.bold,
+                  ),
                   textAlign: TextAlign.center,
                 ),
               ),
@@ -2624,7 +3217,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
   }
 
   Widget _buildUserTile(UserModel user, UserModel currentUser, DateTime now) {
-    final isActuallyOnline = user.isOnline && now.difference(user.lastSeen!).inMinutes < 2;
+    final isActuallyOnline =
+        user.isOnline && now.difference(user.lastSeen!).inMinutes < 2;
     final isFollowing = currentUser.following.contains(user.uid);
     final followBack = user.following.contains(currentUser.uid);
 
@@ -2637,7 +3231,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
       child: ListTile(
         onTap: () {
           _pauseActiveReel();
-          Navigator.push(context, MaterialPageRoute(builder: (_) => UserProfileScreen(user: user)));
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => UserProfileScreen(user: user)),
+          );
         },
         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
         leading: Stack(
@@ -2647,22 +3244,37 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
               height: 56,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                gradient: const LinearGradient(colors: [AppColors.primary, AppColors.secondary]),
+                gradient: const LinearGradient(
+                  colors: [AppColors.primary, AppColors.secondary],
+                ),
                 border: Border.all(color: Colors.white, width: 2),
-                boxShadow: [BoxShadow(color: AppColors.primary.withValues(alpha: 0.1), blurRadius: 10)],
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.primary.withValues(alpha: 0.1),
+                    blurRadius: 10,
+                  ),
+                ],
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(28),
-                child: user.photoUrl != null 
-                  ? CachedNetworkImage(
-                      imageUrl: user.photoUrl!,
-                      fit: BoxFit.cover,
-                      placeholder: (context, url) => const Center(
-                        child: CircularProgressIndicator(strokeWidth: 2),
+                child: user.photoUrl != null
+                    ? CachedNetworkImage(
+                        imageUrl: user.photoUrl!,
+                        fit: BoxFit.cover,
+                        placeholder: (context, url) => Container(color: Colors.black12),
+                        errorWidget: (context, url, error) =>
+                            const Icon(Icons.error),
+                      )
+                    : Center(
+                        child: Text(
+                          user.displayName[0].toUpperCase(),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 20,
+                          ),
+                        ),
                       ),
-                      errorWidget: (context, url, error) => const Icon(Icons.error),
-                    )
-                  : Center(child: Text(user.displayName[0].toUpperCase(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20))),
               ),
             ),
             if (isActuallyOnline)
@@ -2683,24 +3295,44 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
         ),
         title: Text(
           user.displayName,
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.textPrimary),
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+            color: AppColors.textPrimary,
+          ),
         ),
         subtitle: Row(
           children: [
             Text(
-              isActuallyOnline ? 'Online now' : _formatLastSeen(user.lastSeen, now),
-              style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+              isActuallyOnline
+                  ? 'Online now'
+                  : _formatLastSeen(user.lastSeen, now),
+              style: const TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 12,
+              ),
             ),
             if (isFollowing && followBack) ...[
               const SizedBox(width: 8),
               const Icon(Icons.verified, color: AppColors.primary, size: 14),
             ] else if (isFollowing) ...[
               const SizedBox(width: 8),
-              const Text('• Following', style: TextStyle(color: AppColors.primary, fontSize: 11, fontWeight: FontWeight.w500)),
+              const Text(
+                '• Following',
+                style: TextStyle(
+                  color: AppColors.primary,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
             ],
           ],
         ),
-        trailing: const Icon(Icons.chevron_right, color: Colors.black12, size: 20),
+        trailing: const Icon(
+          Icons.chevron_right,
+          color: Colors.black12,
+          size: 20,
+        ),
       ),
     );
   }
@@ -2811,7 +3443,8 @@ class _ReelsPlayerItemState extends ConsumerState<ReelsPlayerItem> {
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
-    final isInitialized = widget.controller != null && widget.controller!.value.isInitialized;
+    final isInitialized =
+        widget.controller != null && widget.controller!.value.isInitialized;
 
     return Container(
       width: size.width,
@@ -2835,26 +3468,17 @@ class _ReelsPlayerItemState extends ConsumerState<ReelsPlayerItem> {
                       ),
                     ),
                   )
-                : (widget.thumbnailUrl != null && widget.thumbnailUrl!.isNotEmpty)
-                    ? SizedBox.expand(
-                        child: CachedNetworkImage(
-                          imageUrl: widget.thumbnailUrl!,
-                          fit: BoxFit.cover,
-                          placeholder: (context, url) => const Center(
-                            child: CircularProgressIndicator(color: Colors.white),
-                          ),
-                          errorWidget: (context, url, error) => const Center(
-                            child: CircularProgressIndicator(color: Colors.white),
-                          ),
-                        ),
-                      )
-                    : const Center(
-                        child: RepaintBoundary(
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
+                : (widget.thumbnailUrl != null &&
+                      widget.thumbnailUrl!.isNotEmpty)
+                ? SizedBox.expand(
+                    child: CachedNetworkImage(
+                      imageUrl: widget.thumbnailUrl!,
+                      fit: BoxFit.cover,
+                      placeholder: (context, url) => Container(color: Colors.black),
+                      errorWidget: (context, url, error) => Container(color: Colors.black),
+                    ),
+                  )
+                : Container(color: Colors.black),
           ),
 
           // Play/Pause Tap Overlay Indicator
@@ -2865,22 +3489,22 @@ class _ReelsPlayerItemState extends ConsumerState<ReelsPlayerItem> {
                   duration: const Duration(milliseconds: 200),
                   opacity: _showPlayPauseOverlay ? 1.0 : 0.0,
                   child: Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: const BoxDecoration(
-                    color: Colors.black38,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    widget.controller!.value.isPlaying
-                        ? Icons.play_arrow_rounded
-                        : Icons.pause_rounded,
-                    color: Colors.white,
-                    size: 48,
+                    padding: const EdgeInsets.all(16),
+                    decoration: const BoxDecoration(
+                      color: Colors.black38,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      widget.controller!.value.isPlaying
+                          ? Icons.play_arrow_rounded
+                          : Icons.pause_rounded,
+                      color: Colors.white,
+                      size: 48,
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
 
           // Right Side Action Buttons & Bottom Info overlay
           Positioned(
@@ -2893,22 +3517,38 @@ class _ReelsPlayerItemState extends ConsumerState<ReelsPlayerItem> {
                     builder: (context, snapshot) {
                       final doc = snapshot.data ?? widget.reelDoc!;
                       final data = doc.data() as Map<String, dynamic>? ?? {};
-                      
-                      final creatorAvatar = data['photoUrl'] as String? ?? widget.creatorAvatar;
-                      final creatorName = data['displayName'] as String? ?? widget.creatorName;
-                      final uid = data['uid'] as String?;
-                      
-                      // Fallback: If reel has no uid (old reel), check if creatorName matches current user
-                      final isMe = widget.currentUser != null && (
-                        (uid != null && uid == widget.currentUser!.uid) ||
-                        (uid == null && creatorName == widget.currentUser!.displayName) ||
-                        (uid == null && creatorName == '@${widget.currentUser!.displayName}')
-                      );
 
-                      return _buildAuthorInfo(creatorAvatar, creatorName, widget.caption, isMe);
+                      final creatorAvatar =
+                          data['photoUrl'] as String? ?? widget.creatorAvatar;
+                      final creatorName =
+                          data['displayName'] as String? ?? widget.creatorName;
+                      final uid = data['uid'] as String?;
+
+                      // Fallback: If reel has no uid (old reel), check if creatorName matches current user
+                      final isMe =
+                          widget.currentUser != null &&
+                          ((uid != null && uid == widget.currentUser!.uid) ||
+                              (uid == null &&
+                                  creatorName ==
+                                      widget.currentUser!.displayName) ||
+                              (uid == null &&
+                                  creatorName ==
+                                      '@${widget.currentUser!.displayName}'));
+
+                      return _buildAuthorInfo(
+                        creatorAvatar,
+                        creatorName,
+                        widget.caption,
+                        isMe,
+                      );
                     },
                   )
-                : _buildAuthorInfo(widget.creatorAvatar, widget.creatorName, widget.caption, false),
+                : _buildAuthorInfo(
+                    widget.creatorAvatar,
+                    widget.creatorName,
+                    widget.caption,
+                    false,
+                  ),
           ),
 
           // Right Sidebar Actions
@@ -2929,7 +3569,9 @@ class _ReelsPlayerItemState extends ConsumerState<ReelsPlayerItem> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           _buildReelAction(
-                            icon: isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                            icon: isLiked
+                                ? Icons.favorite_rounded
+                                : Icons.favorite_border_rounded,
                             label: _formatCount(likeCount),
                             color: isLiked ? Colors.red : Colors.white,
                             onTap: () {
@@ -2944,9 +3586,13 @@ class _ReelsPlayerItemState extends ConsumerState<ReelsPlayerItem> {
                           ),
                           const SizedBox(height: 16),
                           StreamBuilder<QuerySnapshot>(
-                            stream: doc.reference.collection('comments').snapshots(),
+                            stream: doc.reference
+                                .collection('comments')
+                                .snapshots(),
                             builder: (context, commentSnapshot) {
-                              final commentCount = commentSnapshot.hasData ? commentSnapshot.data!.docs.length : 0;
+                              final commentCount = commentSnapshot.hasData
+                                  ? commentSnapshot.data!.docs.length
+                                  : 0;
                               return _buildReelAction(
                                 icon: Icons.mode_comment_rounded,
                                 label: _formatCount(commentCount),
@@ -2959,13 +3605,42 @@ class _ReelsPlayerItemState extends ConsumerState<ReelsPlayerItem> {
                             icon: Icons.share_rounded,
                             label: 'Share',
                             onTap: () {
-                              final link = 'https://callingapp.page.link/reel/${doc.id}';
+                              final link =
+                                  'https://callingapp.page.link/reel/${doc.id}';
                               Clipboard.setData(ClipboardData(text: link));
-                              TopNotificationService.showSuccess(context, 'Reel link copied to clipboard!');
+                              TopNotificationService.showSuccess(
+                                context,
+                                'Reel link copied to clipboard!',
+                              );
                             },
                           ),
                           const SizedBox(height: 16),
                           if (data['uid'] == widget.currentUser?.uid) ...[
+                            _buildReelAction(
+                              icon: data['isHidden'] == true
+                                  ? Icons.visibility_rounded
+                                  : Icons.visibility_off_rounded,
+                              label: data['isHidden'] == true
+                                  ? 'Unhide'
+                                  : 'Archive',
+                              color: Colors.white,
+                              onTap: () async {
+                                final bool isHidden = data['isHidden'] == true;
+                                await doc.reference.update({
+                                  'isHidden': !isHidden,
+                                });
+                                ref.read(mediaRefreshProvider.notifier).state++;
+                                if (context.mounted) {
+                                  TopNotificationService.showSuccess(
+                                    context,
+                                    isHidden
+                                        ? 'Reel unhidden'
+                                        : 'Reel archived',
+                                  );
+                                }
+                              },
+                            ),
+                            const SizedBox(height: 16),
                             _buildReelAction(
                               icon: Icons.delete_rounded,
                               label: 'Delete',
@@ -2984,11 +3659,23 @@ class _ReelsPlayerItemState extends ConsumerState<ReelsPlayerItem> {
                 : Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      _buildReelAction(icon: Icons.favorite_border_rounded, label: '0', onTap: () {}),
+                      _buildReelAction(
+                        icon: Icons.favorite_border_rounded,
+                        label: '0',
+                        onTap: () {},
+                      ),
                       const SizedBox(height: 16),
-                      _buildReelAction(icon: Icons.mode_comment_rounded, label: '0', onTap: () {}),
+                      _buildReelAction(
+                        icon: Icons.mode_comment_rounded,
+                        label: '0',
+                        onTap: () {},
+                      ),
                       const SizedBox(height: 16),
-                      _buildReelAction(icon: Icons.share_rounded, label: 'Share', onTap: () {}),
+                      _buildReelAction(
+                        icon: Icons.share_rounded,
+                        label: 'Share',
+                        onTap: () {},
+                      ),
                       const SizedBox(height: 16),
                       _buildMuteAction(),
                     ],
@@ -3001,15 +3688,20 @@ class _ReelsPlayerItemState extends ConsumerState<ReelsPlayerItem> {
               left: 0,
               right: 0,
               bottom: 64,
-              child: VideoProgressIndicator(
-                widget.controller!,
-                allowScrubbing: true,
-                colors: const VideoProgressColors(
-                  playedColor: Colors.white70,
-                  bufferedColor: Colors.white24,
-                  backgroundColor: Colors.white12,
+              child: RepaintBoundary(
+                child: VideoProgressIndicator(
+                  widget.controller!,
+                  allowScrubbing: true,
+                  colors: const VideoProgressColors(
+                    playedColor: Colors.white70,
+                    bufferedColor: Colors.white24,
+                    backgroundColor: Colors.white12,
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16.0,
+                    vertical: 4.0,
+                  ),
                 ),
-                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
               ),
             ),
         ],
@@ -3017,7 +3709,12 @@ class _ReelsPlayerItemState extends ConsumerState<ReelsPlayerItem> {
     );
   }
 
-  Widget _buildAuthorInfo(String? avatarUrl, String name, String caption, bool isMe) {
+  Widget _buildAuthorInfo(
+    String? avatarUrl,
+    String name,
+    String caption,
+    bool isMe,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -3095,11 +3792,7 @@ class _ReelsPlayerItemState extends ConsumerState<ReelsPlayerItem> {
               color: Colors.black38,
               shape: BoxShape.circle,
             ),
-            child: Icon(
-              icon,
-              color: color,
-              size: 26,
-            ),
+            child: Icon(icon, color: color, size: 26),
           ),
           const SizedBox(height: 4),
           Text(
@@ -3152,12 +3845,23 @@ class _ReelsPlayerItemState extends ConsumerState<ReelsPlayerItem> {
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Delete Reel', style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold)),
-        content: const Text('Are you sure you want to delete this reel permanently? This action cannot be undone.'),
+        title: const Text(
+          'Delete Reel',
+          style: TextStyle(
+            color: AppColors.textPrimary,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        content: const Text(
+          'Are you sure you want to delete this reel permanently? This action cannot be undone.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel', style: TextStyle(color: AppColors.textSecondary)),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
           ),
           TextButton(
             onPressed: () async {
@@ -3167,7 +3871,9 @@ class _ReelsPlayerItemState extends ConsumerState<ReelsPlayerItem> {
                 final videoUrl = data['videoUrl'] as String?;
                 if (videoUrl != null && videoUrl.isNotEmpty) {
                   try {
-                    final storageRef = FirebaseStorage.instance.refFromURL(videoUrl);
+                    final storageRef = FirebaseStorage.instance.refFromURL(
+                      videoUrl,
+                    );
                     await storageRef.delete();
                   } catch (e) {
                     debugPrint('Failed to delete reel media: $e');
@@ -3176,7 +3882,9 @@ class _ReelsPlayerItemState extends ConsumerState<ReelsPlayerItem> {
                 final thumbnailUrl = data['thumbnail'] as String?;
                 if (thumbnailUrl != null && thumbnailUrl.isNotEmpty) {
                   try {
-                    final storageRef = FirebaseStorage.instance.refFromURL(thumbnailUrl);
+                    final storageRef = FirebaseStorage.instance.refFromURL(
+                      thumbnailUrl,
+                    );
                     await storageRef.delete();
                   } catch (e) {
                     debugPrint('Failed to delete reel thumbnail: $e');
@@ -3186,10 +3894,16 @@ class _ReelsPlayerItemState extends ConsumerState<ReelsPlayerItem> {
                 ref.read(mediaRefreshProvider.notifier).state++;
                 TopNotificationService.showSuccess(context, 'Reel deleted');
               } catch (e) {
-                TopNotificationService.showError(context, 'Failed to delete reel: $e');
+                TopNotificationService.showError(
+                  context,
+                  'Failed to delete reel: $e',
+                );
               }
             },
-            child: const Text('Delete', style: TextStyle(color: AppColors.error)),
+            child: const Text(
+              'Delete',
+              style: TextStyle(color: AppColors.error),
+            ),
           ),
         ],
       ),
@@ -3203,10 +3917,7 @@ class _ReelsPlayerItemState extends ConsumerState<ReelsPlayerItem> {
 class StoryViewerDialog extends StatefulWidget {
   final List<Map<String, dynamic>> stories;
 
-  const StoryViewerDialog({
-    super.key,
-    required this.stories,
-  });
+  const StoryViewerDialog({super.key, required this.stories});
 
   @override
   State<StoryViewerDialog> createState() => _StoryViewerDialogState();
@@ -3229,10 +3940,12 @@ class _StoryViewerDialogState extends State<StoryViewerDialog>
   }
 
   void _loadStory(int index) async {
+    _progressController.stop();
     _progressController.reset();
+    _videoController?.pause();
     _videoController?.dispose();
     _videoController = null;
-    
+
     if (mounted) {
       setState(() {
         _isPlayerInitialized = false;
@@ -3246,38 +3959,41 @@ class _StoryViewerDialogState extends State<StoryViewerDialog>
 
     if (type == 'video' && mediaUrl != null) {
       _videoController = VideoPlayerController.networkUrl(Uri.parse(mediaUrl));
-      _videoController!.initialize().then((_) {
-        if (mounted && _currentIndex == index) {
-          setState(() {
-            _isPlayerInitialized = true;
-          });
-          _videoController!.play();
-          
-          final duration = _videoController!.value.duration;
-          _progressController.duration = duration.inSeconds > 0 
-              ? duration 
-              : const Duration(seconds: 6);
+      _videoController!
+          .initialize()
+          .then((_) {
+            if (mounted && _currentIndex == index) {
+              setState(() {
+                _isPlayerInitialized = true;
+              });
+              _videoController!.play();
 
-          _progressController.forward().then((_) {
+              final duration = _videoController!.value.duration;
+              _progressController.duration = duration.inSeconds > 0
+                  ? duration
+                  : const Duration(seconds: 6);
+
+              _progressController.forward().then((_) {
+                if (mounted && _currentIndex == index) {
+                  _nextStory();
+                }
+              });
+            }
+          })
+          .catchError((error) {
+            debugPrint("Story Video Player Error: $error");
             if (mounted && _currentIndex == index) {
-              _nextStory();
+              setState(() {
+                _hasPlayerError = true;
+              });
+              _progressController.duration = const Duration(seconds: 5);
+              _progressController.forward().then((_) {
+                if (mounted && _currentIndex == index) {
+                  _nextStory();
+                }
+              });
             }
           });
-        }
-      }).catchError((error) {
-        debugPrint("Story Video Player Error: $error");
-        if (mounted && _currentIndex == index) {
-          setState(() {
-            _hasPlayerError = true;
-          });
-          _progressController.duration = const Duration(seconds: 5);
-          _progressController.forward().then((_) {
-            if (mounted && _currentIndex == index) {
-              _nextStory();
-            }
-          });
-        }
-      });
     } else if (type == 'image' && mediaUrl != null) {
       _progressController.duration = const Duration(seconds: 5);
       // For images, we start the timer in _buildBackground using imageBuilder
@@ -3298,6 +4014,8 @@ class _StoryViewerDialogState extends State<StoryViewerDialog>
       });
       _loadStory(_currentIndex);
     } else {
+      _progressController.stop();
+      _videoController?.pause();
       Navigator.of(context).pop();
     }
   }
@@ -3316,7 +4034,9 @@ class _StoryViewerDialogState extends State<StoryViewerDialog>
 
   @override
   void dispose() {
+    _progressController.stop();
     _progressController.dispose();
+    _videoController?.pause();
     _videoController?.dispose();
     super.dispose();
   }
@@ -3324,58 +4044,68 @@ class _StoryViewerDialogState extends State<StoryViewerDialog>
   Widget _buildBackground(Map<String, dynamic> story) {
     final String type = story['type'] ?? 'image';
     final String? mediaUrl = story['mediaUrl'];
-    
+
     // Gradient colors fallback
-    final List<Color> colors = [const Color(0xFF6366F1), const Color(0xFFA855F7)];
+    final List<Color> colors = [
+      const Color(0xFF6366F1),
+      const Color(0xFFA855F7),
+    ];
 
     if (type == 'image' && mediaUrl != null) {
       return Positioned.fill(
-        child: CachedNetworkImage(
-          imageUrl: mediaUrl,
-          fit: BoxFit.cover,
-          imageBuilder: (context, imageProvider) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (mounted && 
-                  !_progressController.isAnimating && 
-                  !_progressController.isCompleted && 
-                  !_isHolding && 
-                  _currentIndex == widget.stories.indexOf(story)) {
-                _progressController.forward().then((_) {
-                  if (mounted && _currentIndex == widget.stories.indexOf(story)) {
-                    _nextStory();
-                  }
-                });
-              }
-            });
-            return Image(image: imageProvider, fit: BoxFit.cover);
-          },
-          placeholder: (context, url) => const Center(
-            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-          ),
-          errorWidget: (context, url, error) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (mounted && 
-                  !_progressController.isAnimating && 
-                  !_progressController.isCompleted && 
-                  !_isHolding && 
-                  _currentIndex == widget.stories.indexOf(story)) {
-                _progressController.forward().then((_) {
-                  if (mounted && _currentIndex == widget.stories.indexOf(story)) {
-                    _nextStory();
-                  }
-                });
-              }
-            });
-            return Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: colors,
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
+        child: RepaintBoundary(
+          child: CachedNetworkImage(
+            imageUrl: mediaUrl,
+            fit: BoxFit.cover,
+            imageBuilder: (context, imageProvider) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted &&
+                    !_progressController.isAnimating &&
+                    !_progressController.isCompleted &&
+                    !_isHolding &&
+                    _currentIndex == widget.stories.indexOf(story)) {
+                  _progressController.forward().then((_) {
+                    if (mounted &&
+                        _currentIndex == widget.stories.indexOf(story)) {
+                      _nextStory();
+                    }
+                  });
+                }
+              });
+              return Image(image: imageProvider, fit: BoxFit.cover);
+            },
+            placeholder: (context, url) => const Center(
+              child: CircularProgressIndicator(
+                color: Colors.white,
+                strokeWidth: 2,
               ),
-            );
-          },
+            ),
+            errorWidget: (context, url, error) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted &&
+                    !_progressController.isAnimating &&
+                    !_progressController.isCompleted &&
+                    !_isHolding &&
+                    _currentIndex == widget.stories.indexOf(story)) {
+                  _progressController.forward().then((_) {
+                    if (mounted &&
+                        _currentIndex == widget.stories.indexOf(story)) {
+                      _nextStory();
+                    }
+                  });
+                }
+              });
+              return Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: colors,
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                ),
+              );
+            },
+          ),
         ),
       );
     } else if (type == 'video' && mediaUrl != null) {
@@ -3414,7 +4144,7 @@ class _StoryViewerDialogState extends State<StoryViewerDialog>
         );
       }
     }
-    
+
     // Default gradient for text stories
     return Positioned.fill(
       child: Container(
@@ -3432,28 +4162,31 @@ class _StoryViewerDialogState extends State<StoryViewerDialog>
   @override
   Widget build(BuildContext context) {
     if (widget.stories.isEmpty) return const SizedBox.shrink();
-    
+
     final story = widget.stories[_currentIndex];
     final isTextStory = story['type'] == 'text';
     final text = story['text'] ?? '';
-    
+
     // Find the first story in the group with a non-empty photoUrl or displayName
     final firstWithPhoto = widget.stories.firstWhere(
       (s) => s['photoUrl'] != null && (s['photoUrl'] as String).isNotEmpty,
       orElse: () => widget.stories.first,
     );
     final firstWithDisplayName = widget.stories.firstWhere(
-      (s) => s['displayName'] != null && (s['displayName'] as String).isNotEmpty,
+      (s) =>
+          s['displayName'] != null && (s['displayName'] as String).isNotEmpty,
       orElse: () => widget.stories.first,
     );
-    
+
     final String displayName = firstWithDisplayName['displayName'] ?? 'User';
     final String? photoUrl = firstWithPhoto['photoUrl'];
-    
+
     final int timestamp = parseTimestamp(story['timestamp']);
     String timeAgo = '';
     if (timestamp > 0) {
-      final diff = DateTime.now().difference(DateTime.fromMillisecondsSinceEpoch(timestamp));
+      final diff = DateTime.now().difference(
+        DateTime.fromMillisecondsSinceEpoch(timestamp),
+      );
       if (diff.inMinutes < 1) {
         timeAgo = 'now';
       } else if (diff.inHours < 1) {
@@ -3464,22 +4197,19 @@ class _StoryViewerDialogState extends State<StoryViewerDialog>
     }
 
     return Dialog(
-      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 40),
-      backgroundColor: Colors.transparent,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(30),
-        child: Container(
-          color: Colors.black,
-          child: Stack(
+      insetPadding: EdgeInsets.zero,
+      backgroundColor: Colors.black,
+      child: Stack(
             children: [
               // Story Background
               _buildBackground(story),
 
               // Dark overlay for readability on image/video backgrounds
               if (!isTextStory)
-                Positioned.fill(
-                  child: Container(color: Colors.black.withValues(alpha: 0.25)),
+                const Positioned.fill(
+                  child: RepaintBoundary(
+                    child: ColoredBox(color: Color(0x40000000)),
+                  ),
                 ),
 
               // Content Layout (Text or Caption)
@@ -3494,7 +4224,13 @@ class _StoryViewerDialogState extends State<StoryViewerDialog>
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
                         letterSpacing: 0.5,
-                        shadows: [Shadow(color: Colors.black45, blurRadius: 8, offset: Offset(0, 2))],
+                        shadows: [
+                          Shadow(
+                            color: Colors.black45,
+                            blurRadius: 8,
+                            offset: Offset(0, 2),
+                          ),
+                        ],
                       ),
                       textAlign: TextAlign.center,
                     ),
@@ -3506,7 +4242,10 @@ class _StoryViewerDialogState extends State<StoryViewerDialog>
                   left: 16,
                   right: 16,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.black54,
                       borderRadius: BorderRadius.circular(16),
@@ -3561,116 +4300,171 @@ class _StoryViewerDialogState extends State<StoryViewerDialog>
               // Header Details
               if (!_isHolding)
                 Positioned(
-                top: 20,
-                left: 16,
-                right: 16,
-                child: Column(
-                  children: [
-                    // Segmented Progress Indicator Bar
-                    Row(
-                      children: List.generate(widget.stories.length, (index) {
-                        return Expanded(
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 2.0),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(2),
-                              child: AnimatedBuilder(
-                                animation: _progressController,
-                                builder: (context, child) {
-                                  double val = 0.0;
-                                  if (index < _currentIndex) {
-                                    val = 1.0;
-                                  } else if (index == _currentIndex) {
-                                    val = _progressController.value;
-                                  }
-                                  return LinearProgressIndicator(
-                                    value: val,
-                                    backgroundColor: Colors.white24,
-                                    valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
-                                    minHeight: 3,
-                                  );
-                                },
+                  top: 20,
+                  left: 16,
+                  right: 16,
+                  child: Column(
+                    children: [
+                      // Segmented Progress Indicator Bar
+                      RepaintBoundary(
+                        child: Row(
+                          children: List.generate(widget.stories.length, (
+                            index,
+                          ) {
+                            return Expanded(
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 2.0,
+                                ),
+                                child: RepaintBoundary(
+                                  child: AnimatedBuilder(
+                                    animation: _progressController,
+                                    builder: (context, child) {
+                                      double val = 0.0;
+                                      if (index < _currentIndex) {
+                                        val = 1.0;
+                                      } else if (index == _currentIndex) {
+                                        val = _progressController.value;
+                                      }
+                                      return CustomPaint(
+                                        size: const Size(double.infinity, 3),
+                                        painter: _SegmentBarPainter(value: val),
+                                      );
+                                    },
+                                  ),
+                                ),
+                              ),
+                            );
+                          }),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      // Creator Info Row
+                      RepaintBoundary(
+                        child: Row(
+                          children: [
+                            CircleAvatar(
+                              radius: 18,
+                              backgroundImage:
+                                  photoUrl != null && photoUrl.isNotEmpty
+                                  ? CachedNetworkImageProvider(photoUrl)
+                                  : null,
+                              child: (photoUrl == null || photoUrl.isEmpty)
+                                  ? Text(
+                                      displayName.isNotEmpty
+                                          ? displayName[0].toUpperCase()
+                                          : '?',
+                                    )
+                                  : null,
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Row(
+                                children: [
+                                  Flexible(
+                                    child: Text(
+                                      displayName,
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 15,
+                                        shadows: [
+                                          Shadow(
+                                            color: Colors.black45,
+                                            blurRadius: 4,
+                                          ),
+                                        ],
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  if (timeAgo.isNotEmpty) ...[
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      timeAgo,
+                                      style: const TextStyle(
+                                        color: Colors.white70,
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w500,
+                                        shadows: [
+                                          Shadow(
+                                            color: Colors.black45,
+                                            blurRadius: 4,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ],
                               ),
                             ),
-                          ),
-                        );
-                      }),
-                    ),
-                    const SizedBox(height: 12),
-                    // Creator Info Row
-                    Row(
-                      children: [
-                        CircleAvatar(
-                          radius: 18,
-                          backgroundImage: photoUrl != null && photoUrl.isNotEmpty
-                              ? CachedNetworkImageProvider(photoUrl)
-                              : null,
-                          child: (photoUrl == null || photoUrl.isEmpty)
-                              ? Text(displayName.isNotEmpty ? displayName[0].toUpperCase() : '?')
-                              : null,
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Row(
-                            children: [
-                              Flexible(
-                                child: Text(
-                                  displayName,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 15,
-                                    shadows: [Shadow(color: Colors.black45, blurRadius: 4)],
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
+                            IconButton(
+                              icon: const Icon(
+                                Icons.close,
+                                color: Colors.white,
+                                size: 24,
                               ),
-                              if (timeAgo.isNotEmpty) ...[
-                                const SizedBox(width: 8),
-                                Text(
-                                  timeAgo,
-                                  style: const TextStyle(
-                                    color: Colors.white70,
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w500,
-                                    shadows: [Shadow(color: Colors.black45, blurRadius: 4)],
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
+                              onPressed: () {
+                                _progressController.stop();
+                                _videoController?.pause();
+                                Navigator.of(context).pop();
+                              },
+                            ),
+                          ],
                         ),
-                        IconButton(
-                          icon: const Icon(Icons.close, color: Colors.white, size: 24),
-                          onPressed: () => Navigator.of(context).pop(),
-                        ),
-                      ],
-                    ),
-                  ],
+                      ),
+                    ],
+                  ),
                 ),
-              ),
             ],
           ),
-        ),
-      ),
     );
   }
 }
 
+final feedVideoVisibilityProvider = StateProvider<Map<String, double>>(
+  (ref) => {},
+);
+
+final isStoryDialogOpenProvider = StateProvider<bool>((ref) => false);
+
+final currentTabIndexProvider = StateProvider<int>((ref) => 0);
+
+final activeFeedVideoProvider = Provider<String?>((ref) {
+  // (Removed currentTabIndexProvider check so videos can play in UserPostsScreen)
+
+  final visibilities = ref.watch(feedVideoVisibilityProvider);
+  if (visibilities.isEmpty) {
+    return null;
+  }
+
+  String? mostVisible;
+  double maxVis = 0.0;
+
+  for (var entry in visibilities.entries) {
+    if (entry.value > maxVis) {
+      maxVis = entry.value;
+      mostVisible = entry.key;
+    }
+  }
+
+  if (maxVis >= 0.15) {
+    return mostVisible;
+  }
+  return null;
+});
+
 class PostVideoPlayer extends ConsumerStatefulWidget {
   final String videoUrl;
   final String? thumbnailUrl;
-  const PostVideoPlayer({
-    super.key,
-    required this.videoUrl,
-    this.thumbnailUrl,
-  });
+  const PostVideoPlayer({super.key, required this.videoUrl, this.thumbnailUrl});
 
   @override
   ConsumerState<PostVideoPlayer> createState() => _PostVideoPlayerState();
 }
 
-class _PostVideoPlayerState extends ConsumerState<PostVideoPlayer> with WidgetsBindingObserver {
+class _PostVideoPlayerState extends ConsumerState<PostVideoPlayer>
+    with WidgetsBindingObserver {
   VideoPlayerController? _controller;
   bool _isInitialized = false;
   bool _isInitializing = false;
@@ -3680,13 +4474,18 @@ class _PostVideoPlayerState extends ConsumerState<PostVideoPlayer> with WidgetsB
   double _visibleFraction = 0.0;
   bool _isAppVisible = true;
   bool _isDisposed = false;
+  double? _lastKnownAspectRatio;
+  late final dynamic _visibilityNotifier;
 
   @override
   void initState() {
     super.initState();
+    _visibilityNotifier = ref.read(feedVideoVisibilityProvider.notifier);
     WidgetsBinding.instance.addObserver(this);
     // Configure VisibilityDetector update interval (default is 500ms, set to 100ms for responsiveness)
-    VisibilityDetectorController.instance.updateInterval = const Duration(milliseconds: 100);
+    VisibilityDetectorController.instance.updateInterval = const Duration(
+      milliseconds: 500,
+    );
   }
 
   /// Called whenever the global feed mute state changes.
@@ -3699,7 +4498,8 @@ class _PostVideoPlayerState extends ConsumerState<PostVideoPlayer> with WidgetsB
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
     if (_isDisposed || !mounted) return;
-    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive) {
       _isAppVisible = false;
       _pauseVideo();
     } else if (state == AppLifecycleState.resumed) {
@@ -3713,46 +4513,66 @@ class _PostVideoPlayerState extends ConsumerState<PostVideoPlayer> with WidgetsB
     if (_isInitializing || _isInitialized || _controller != null) return;
     _isInitializing = true;
     try {
-      final file = await DefaultCacheManager().getSingleFile(widget.videoUrl);
+      final fileInfo = await DefaultCacheManager().getFileFromCache(
+        widget.videoUrl,
+      );
       if (_isDisposed || !mounted) return;
-      final controller = VideoPlayerController.file(file);
+
+      final VideoPlayerController controller;
+      if (fileInfo != null && fileInfo.file.existsSync()) {
+        controller = VideoPlayerController.file(fileInfo.file);
+      } else {
+        controller = VideoPlayerController.networkUrl(
+          Uri.parse(widget.videoUrl),
+        );
+        // We use networkUrl to stream the video immediately instead of hanging the thread waiting for a full file download via getSingleFile.
+      }
       await controller.initialize();
-      if (mounted && !_isDisposed) {
+      if (mounted && !_isDisposed && _isInitializing) {
         setState(() {
           _controller = controller;
           _isInitialized = true;
           _isInitializing = false;
+          _lastKnownAspectRatio = controller.value.aspectRatio;
         });
         // Apply global mute state immediately on init
         final isMuted = ref.read(feedMuteProvider);
         _controller?.setVolume(isMuted ? 0 : 1);
-        // Auto-play immediately if it's still highly visible and app is in foreground
-        if (_visibleFraction > 0.5 && _isAppVisible) {
+        // Auto-play immediately if it's the active video
+        final activeUrl = ref.read(activeFeedVideoProvider);
+        if (activeUrl == widget.videoUrl) {
           _playVideo();
         }
       } else {
+        controller.pause();
         controller.dispose();
       }
     } catch (e) {
-      debugPrint("Post cache video player initialize error, falling back to network: $e");
+      debugPrint(
+        "Post cache video player initialize error, falling back to network: $e",
+      );
       if (_isDisposed || !mounted) return;
       try {
-        final controller = VideoPlayerController.networkUrl(Uri.parse(widget.videoUrl));
+        final controller = VideoPlayerController.networkUrl(
+          Uri.parse(widget.videoUrl),
+        );
         await controller.initialize();
-        if (mounted && !_isDisposed) {
+        if (mounted && !_isDisposed && _isInitializing) {
           setState(() {
             _controller = controller;
             _isInitialized = true;
             _isInitializing = false;
+            _lastKnownAspectRatio = controller.value.aspectRatio;
           });
           // Apply global mute state immediately on init
           final isMuted = ref.read(feedMuteProvider);
           _controller?.setVolume(isMuted ? 0 : 1);
-          // Auto-play immediately if it's still highly visible and app is in foreground
-          if (_visibleFraction > 0.5 && _isAppVisible) {
+          // Auto-play immediately if it's the active video
+          if (ref.read(activeFeedVideoProvider) == widget.videoUrl) {
             _playVideo();
           }
         } else {
+          controller.pause();
           controller.dispose();
         }
       } catch (err) {
@@ -3769,6 +4589,14 @@ class _PostVideoPlayerState extends ConsumerState<PostVideoPlayer> with WidgetsB
 
   void _playVideo() {
     if (_isDisposed || !mounted) return;
+
+    // Prevent playback if story dialog is open
+    final isStoryOpen = ref.read(isStoryDialogOpenProvider);
+    if (isStoryOpen) {
+      print('Prevented auto-play: Story dialog is currently open');
+      return;
+    }
+
     final controller = _controller;
     if (controller != null && _isInitialized) {
       if (!controller.value.isPlaying) {
@@ -3794,6 +4622,7 @@ class _PostVideoPlayerState extends ConsumerState<PostVideoPlayer> with WidgetsB
     _controller = null;
     _isInitialized = false;
     _isInitializing = false;
+    controller?.pause();
     controller?.dispose();
     if (mounted) {
       setState(() {});
@@ -3804,29 +4633,32 @@ class _PostVideoPlayerState extends ConsumerState<PostVideoPlayer> with WidgetsB
     if (_isDisposed || !mounted) return;
     _visibleFraction = visibleFraction;
 
+    // Update global registry
+    Future.microtask(() {
+      if (mounted) {
+        ref.read(feedVideoVisibilityProvider.notifier).update((state) {
+          final newState = Map<String, double>.from(state);
+          if (visibleFraction <= 0.05) {
+            newState.remove(widget.videoUrl);
+          } else {
+            newState[widget.videoUrl] = visibleFraction;
+          }
+          return newState;
+        });
+      }
+    });
+
     if (!_isAppVisible) {
       _pauseVideo();
       return;
     }
 
-    if (_visibleFraction > 0.5) {
-      // 50%+ visible: Play video
-      if (_isInitialized) {
-        _playVideo();
-      } else {
-        _initializeCachedController();
-      }
-    } else if (_visibleFraction >= 0.3) {
-      // 30% - 50% visible: Start preloading / initialize controller
+    if (_visibleFraction >= 0.3) {
+      // 30%+ visible: Start preloading / initialize controller if needed
       if (!_isInitialized && !_isInitializing) {
         _initializeCachedController();
       }
-      // Make sure it remains paused until it crosses 50% visibility
-      _pauseVideo();
     } else if (_visibleFraction <= 0.2) {
-      // 0% - 20% visible: Pause video
-      _pauseVideo();
-
       // If completely invisible (0.0), dispose the controller to save memory
       if (_visibleFraction == 0.0) {
         _disposeController();
@@ -3838,21 +4670,66 @@ class _PostVideoPlayerState extends ConsumerState<PostVideoPlayer> with WidgetsB
   void dispose() {
     _isDisposed = true;
     WidgetsBinding.instance.removeObserver(this);
+
+    // Capture notifier before unmounting to prevent memory leak of visibility state
+    final visibilityNotifier = _visibilityNotifier;
+    final urlToRemove = widget.videoUrl;
+
+    // Clean up registry when disposed
+    Future.microtask(() {
+      visibilityNotifier.update((state) {
+        final newState = Map<String, double>.from(state);
+        newState.remove(urlToRemove);
+        return newState;
+      });
+    });
+
+    _controller?.pause();
     _controller?.dispose();
     super.dispose();
   }
 
-
-
   @override
   Widget build(BuildContext context) {
-    // Watch global feed mute state and sync volume whenever it changes
     final isMuted = ref.watch(feedMuteProvider);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!_isDisposed && mounted) {
-        _applyMuteState(isMuted);
+
+    ref.listen(feedMuteProvider, (previous, next) {
+      if (previous != next) {
+        _applyMuteState(next);
       }
     });
+
+    ref.listen(activeFeedVideoProvider, (previous, next) {
+      if (previous != next) {
+        if (next == widget.videoUrl) {
+          if (_isInitialized) _playVideo();
+        } else {
+          _pauseVideo();
+        }
+      }
+    });
+
+    ref.listen(isStoryDialogOpenProvider, (previous, next) {
+      if (previous != next) {
+        if (next) {
+          print('Story opened: Pausing feed video ${widget.videoUrl}');
+          _pauseVideo();
+        } else if (ref.read(activeFeedVideoProvider) == widget.videoUrl &&
+            _isInitialized) {
+          print('Story closed: Resuming feed video ${widget.videoUrl}');
+          _playVideo();
+        }
+      }
+    });
+
+    // Also apply initial states immediately on build for the active video
+    final activeVideoUrl = ref.read(activeFeedVideoProvider);
+    if (activeVideoUrl == widget.videoUrl && _isInitialized) {
+      // Don't call play directly inside build, use Future.microtask
+      Future.microtask(() {
+        if (mounted && !_isDisposed) _playVideo();
+      });
+    }
 
     if (_hasError) {
       return const SizedBox(
@@ -3870,8 +4747,9 @@ class _PostVideoPlayerState extends ConsumerState<PostVideoPlayer> with WidgetsB
     Widget content;
 
     if (controller == null || !_isInitialized) {
+      final double targetRatio = _lastKnownAspectRatio ?? 16 / 9;
       content = AspectRatio(
-        aspectRatio: 16 / 9,
+        aspectRatio: targetRatio,
         child: Stack(
           alignment: Alignment.center,
           children: [
@@ -3910,9 +4788,8 @@ class _PostVideoPlayerState extends ConsumerState<PostVideoPlayer> with WidgetsB
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => FullScreenFeedVideoScreen(
-                        videoUrl: widget.videoUrl,
-                      ),
+                      builder: (context) =>
+                          FullScreenFeedVideoScreen(videoUrl: widget.videoUrl),
                     ),
                   );
                 },
@@ -3921,29 +4798,31 @@ class _PostVideoPlayerState extends ConsumerState<PostVideoPlayer> with WidgetsB
               ),
             ),
 
-              // ── Global Feed Mute Button (bottom-right) ──────────────────────
-              Positioned(
-                right: 10,
-                bottom: 36,
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () {
-                    ref.read(feedMuteProvider.notifier).toggle();
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.all(7),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.55),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      isMuted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
-                      color: Colors.white,
-                      size: 20,
-                    ),
+            // ── Global Feed Mute Button (bottom-right) ──────────────────────
+            Positioned(
+              right: 10,
+              bottom: 36,
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () {
+                  ref.read(feedMuteProvider.notifier).toggle();
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(7),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.55),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    isMuted
+                        ? Icons.volume_off_rounded
+                        : Icons.volume_up_rounded,
+                    color: Colors.white,
+                    size: 20,
                   ),
                 ),
               ),
+            ),
           ],
         ),
       );
@@ -3964,10 +4843,12 @@ class FullScreenFeedVideoScreen extends ConsumerStatefulWidget {
   const FullScreenFeedVideoScreen({super.key, required this.videoUrl});
 
   @override
-  ConsumerState<FullScreenFeedVideoScreen> createState() => _FullScreenFeedVideoScreenState();
+  ConsumerState<FullScreenFeedVideoScreen> createState() =>
+      _FullScreenFeedVideoScreenState();
 }
 
-class _FullScreenFeedVideoScreenState extends ConsumerState<FullScreenFeedVideoScreen> {
+class _FullScreenFeedVideoScreenState
+    extends ConsumerState<FullScreenFeedVideoScreen> {
   VideoPlayerController? _controller;
   bool _isInitialized = false;
   bool _hasError = false;
@@ -3983,7 +4864,9 @@ class _FullScreenFeedVideoScreenState extends ConsumerState<FullScreenFeedVideoS
       final file = await DefaultCacheManager().getSingleFile(widget.videoUrl);
       _controller = VideoPlayerController.file(file);
     } catch (_) {
-      _controller = VideoPlayerController.networkUrl(Uri.parse(widget.videoUrl));
+      _controller = VideoPlayerController.networkUrl(
+        Uri.parse(widget.videoUrl),
+      );
     }
 
     try {
@@ -4028,45 +4911,50 @@ class _FullScreenFeedVideoScreenState extends ConsumerState<FullScreenFeedVideoS
           // Video Content
           Positioned.fill(
             child: _hasError
-                ? const Center(child: Text('Failed to load video', style: TextStyle(color: Colors.white)))
+                ? const Center(
+                    child: Text(
+                      'Failed to load video',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  )
                 : _isInitialized && _controller != null
-                    ? GestureDetector(
-                        onTap: () {
-                          if (_controller!.value.isPlaying) {
-                            _controller!.pause();
-                          } else {
-                            _controller!.play();
-                          }
-                          setState(() {});
-                        },
-                          child: Stack(
-                            alignment: Alignment.center,
-                            children: [
-                              AspectRatio(
-                                aspectRatio: _controller!.value.aspectRatio,
-                                child: VideoPlayer(_controller!),
-                              ),
-                              if (!_controller!.value.isPlaying)
-                                Container(
-                                  padding: const EdgeInsets.all(16),
-                                  decoration: BoxDecoration(
-                                    color: Colors.black.withValues(alpha: 0.5),
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: const Icon(
-                                    Icons.play_arrow_rounded,
-                                    color: Colors.white,
-                                    size: 50,
-                                  ),
-                                ),
-                            ],
-                          ),
-                      )
-                    : const Center(
-                        child: RepaintBoundary(
-                          child: CircularProgressIndicator(color: Colors.white),
+                ? GestureDetector(
+                    onTap: () {
+                      if (_controller!.value.isPlaying) {
+                        _controller!.pause();
+                      } else {
+                        _controller!.play();
+                      }
+                      setState(() {});
+                    },
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        AspectRatio(
+                          aspectRatio: _controller!.value.aspectRatio,
+                          child: VideoPlayer(_controller!),
                         ),
-                      ),
+                        if (!_controller!.value.isPlaying)
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.5),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.play_arrow_rounded,
+                              color: Colors.white,
+                              size: 50,
+                            ),
+                          ),
+                      ],
+                    ),
+                  )
+                : const Center(
+                    child: RepaintBoundary(
+                      child: CircularProgressIndicator(color: Colors.white),
+                    ),
+                  ),
           ),
 
           // Back Button
@@ -4096,7 +4984,9 @@ class _FullScreenFeedVideoScreenState extends ConsumerState<FullScreenFeedVideoS
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
-                    isMuted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
+                    isMuted
+                        ? Icons.volume_off_rounded
+                        : Icons.volume_up_rounded,
                     color: Colors.white,
                     size: 20,
                   ),
@@ -4124,5 +5014,35 @@ class _FullScreenFeedVideoScreenState extends ConsumerState<FullScreenFeedVideoS
         ],
       ),
     );
+  }
+}
+
+class _SegmentBarPainter extends CustomPainter {
+  final double value;
+  _SegmentBarPainter({required this.value});
+
+  static final Paint _bgPaint = Paint()..color = Colors.white24;
+  static final Paint _fgPaint = Paint()..color = Colors.white;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rrect = RRect.fromRectAndRadius(
+      Offset.zero & size,
+      const Radius.circular(2),
+    );
+    canvas.drawRRect(rrect, _bgPaint);
+
+    if (value > 0) {
+      final fgRect = RRect.fromRectAndRadius(
+        Rect.fromLTWH(0, 0, size.width * value, size.height),
+        const Radius.circular(2),
+      );
+      canvas.drawRRect(fgRect, _fgPaint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _SegmentBarPainter oldDelegate) {
+    return oldDelegate.value != value;
   }
 }
