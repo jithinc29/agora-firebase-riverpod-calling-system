@@ -7,7 +7,6 @@ class CustomBottomNavBar extends StatefulWidget {
   final ValueChanged<int> onTap;
   final VoidCallback onCreatePostTap;
   final VoidCallback onCreateReelTap;
-  final VoidCallback onCreateStoryTap;
   final bool isMenuOpen;
   final VoidCallback onMenuToggle;
   final VoidCallback onMenuClose;
@@ -18,7 +17,6 @@ class CustomBottomNavBar extends StatefulWidget {
     required this.onTap,
     required this.onCreatePostTap,
     required this.onCreateReelTap,
-    required this.onCreateStoryTap,
     required this.isMenuOpen,
     required this.onMenuToggle,
     required this.onMenuClose,
@@ -79,14 +77,11 @@ class _CustomBottomNavBarState extends State<CustomBottomNavBar>
   @override
   Widget build(BuildContext context) {
     // Bubble end offsets relative to the center "+" button
-    const double leftBubbleDx = -85.0;
-    const double leftBubbleDy = -80.0;
+    const double leftBubbleDx = -60.0;
+    const double leftBubbleDy = -100.0;
 
-    const double middleBubbleDx = 0.0;
-    const double middleBubbleDy = -120.0;
-
-    const double rightBubbleDx = 85.0;
-    const double rightBubbleDy = -80.0;
+    const double middleBubbleDx = 60.0;
+    const double middleBubbleDy = -100.0;
 
     return RepaintBoundary(
       child: Stack(
@@ -131,10 +126,6 @@ class _CustomBottomNavBarState extends State<CustomBottomNavBar>
                           middleBubbleDx,
                           middleBubbleDy,
                         ),
-                        rightBubbleTarget: const Offset(
-                          rightBubbleDx,
-                          rightBubbleDy,
-                        ),
                       ),
                     );
                   },
@@ -144,7 +135,7 @@ class _CustomBottomNavBarState extends State<CustomBottomNavBar>
 
           // 3. Popping Bubbles (Animated Positions)
           _buildBubble(
-            icon: Icons.add_photo_alternate_rounded, // Post
+            icon: Icons.add_box_rounded, // Post
             dx: leftBubbleDx,
             dy: leftBubbleDy,
             onTap: () {
@@ -153,21 +144,12 @@ class _CustomBottomNavBarState extends State<CustomBottomNavBar>
             },
           ),
           _buildBubble(
-            icon: Icons.movie_creation_rounded, // Reel
+            icon: Icons.slow_motion_video_rounded, // Reel
             dx: middleBubbleDx,
             dy: middleBubbleDy,
             onTap: () {
               _closeMenu();
               widget.onCreateReelTap();
-            },
-          ),
-          _buildBubble(
-            icon: Icons.add_circle_outline_rounded, // Story
-            dx: rightBubbleDx,
-            dy: rightBubbleDy,
-            onTap: () {
-              _closeMenu();
-              widget.onCreateStoryTap();
             },
           ),
 
@@ -460,13 +442,11 @@ class GooeyBridgePainter extends CustomPainter {
   final double progress;
   final Offset leftBubbleTarget;
   final Offset middleBubbleTarget;
-  final Offset rightBubbleTarget;
 
   GooeyBridgePainter({
     required this.progress,
     required this.leftBubbleTarget,
     required this.middleBubbleTarget,
-    required this.rightBubbleTarget,
   });
 
   @override
@@ -501,15 +481,6 @@ class GooeyBridgePainter extends CustomPainter {
       paint,
       const Offset(0, 0),
       middleBubbleTarget * progress,
-      rCenter,
-      rBubble,
-      bridgeT,
-    );
-    _drawGooeyBridge(
-      canvas,
-      paint,
-      const Offset(0, 0),
-      rightBubbleTarget * progress,
       rCenter,
       rBubble,
       bridgeT,

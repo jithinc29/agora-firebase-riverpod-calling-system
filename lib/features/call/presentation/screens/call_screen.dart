@@ -184,7 +184,12 @@ class _CallScreenState extends ConsumerState<CallScreen>
           }
         },
         onUserJoined: (RtcConnection connection, int remoteUid, int elapsed) {
-          setState(() => _remoteUid = remoteUid);
+          setState(() {
+            _remoteUid = remoteUid;
+            if (_statusMessage == "CONNECTING...") {
+              _statusMessage = null;
+            }
+          });
           _checkConnectionStatus();
         },
         onUserOffline:
@@ -222,23 +227,31 @@ class _CallScreenState extends ConsumerState<CallScreen>
           int createdAt = rawCreatedAt is Timestamp
               ? rawCreatedAt.millisecondsSinceEpoch
               : (rawCreatedAt ?? 0);
-          if (createdAt > _startTime - 10000 &&
-              (data['status'] == 'ended' ||
-                  data['status'] == 'timed_out' ||
-                  data['status'] == 'declined')) {
-            _stopRingtone();
+          if (createdAt > _startTime - 10000) {
             final status = data['status'];
-            if (mounted) {
-              setState(
-                () => _statusMessage = status == 'declined'
-                    ? "DECLINED"
-                    : "DISCONNECTED",
-              );
-              Future.delayed(const Duration(seconds: 2), () {
-                if (mounted) {
-                  Navigator.of(context).pop();
-                }
-              });
+            if (status == 'ended' ||
+                status == 'timed_out' ||
+                status == 'declined') {
+              _stopRingtone();
+              if (mounted) {
+                setState(
+                  () => _statusMessage = status == 'declined'
+                      ? "DECLINED"
+                      : "DISCONNECTED",
+                );
+                Future.delayed(const Duration(seconds: 2), () {
+                  if (mounted) {
+                    Navigator.of(context).pop();
+                  }
+                });
+              }
+            } else if (status == 'ongoing') {
+              // Stop ringing immediately when receiver accepts, even before Agora handshake completes
+              _stopRingtone();
+              if (mounted && _statusMessage == null) {
+                setState(() => _statusMessage = "CONNECTING...");
+              }
+              _checkConnectionStatus();
             }
           }
         }

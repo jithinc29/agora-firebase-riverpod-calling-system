@@ -12,11 +12,13 @@ import 'package:video_compress/video_compress.dart';
 class ReelUploadScreen extends StatefulWidget {
   final File videoFile;
   final UserModel currentUser;
+  final String mode;
 
   const ReelUploadScreen({
     super.key,
     required this.videoFile,
     required this.currentUser,
+    this.mode = 'reel',
   });
 
   @override
@@ -33,17 +35,20 @@ class _ReelUploadScreenState extends State<ReelUploadScreen> {
   void initState() {
     super.initState();
     _videoController = VideoPlayerController.file(widget.videoFile);
-    _videoController.initialize().then((_) {
-      if (mounted) {
-        setState(() {
-          _isInitialized = true;
+    _videoController
+        .initialize()
+        .then((_) {
+          if (mounted) {
+            setState(() {
+              _isInitialized = true;
+            });
+            _videoController.setLooping(true);
+            _videoController.play();
+          }
+        })
+        .catchError((e) {
+          debugPrint("Reel local video preview initialize error: $e");
         });
-        _videoController.setLooping(true);
-        _videoController.play();
-      }
-    }).catchError((e) {
-      debugPrint("Reel local video preview initialize error: $e");
-    });
   }
 
   @override
@@ -64,9 +69,16 @@ class _ReelUploadScreenState extends State<ReelUploadScreen> {
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
-          'New Reel',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        title: Text(
+          widget.mode == 'story'
+              ? 'New Story'
+              : widget.mode == 'reel'
+                  ? 'New Reel'
+                  : 'New Video Post',
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
         ),
         actions: [
           TextButton(
@@ -91,7 +103,9 @@ class _ReelUploadScreenState extends State<ReelUploadScreen> {
                 // Video Preview Box
                 Container(
                   width: double.infinity,
-                  height: MediaQuery.of(context).size.height * 0.5,
+                  height: widget.mode == 'story'
+                      ? MediaQuery.of(context).size.height * 0.8
+                      : MediaQuery.of(context).size.height * 0.5,
                   decoration: BoxDecoration(
                     color: Colors.grey[900],
                     border: Border(
@@ -137,68 +151,94 @@ class _ReelUploadScreenState extends State<ReelUploadScreen> {
                           child: CircularProgressIndicator(color: Colors.white),
                         ),
                 ),
-                
+
                 // Caption box
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      CircleAvatar(
-                        radius: 18,
-                        backgroundImage: widget.currentUser.photoUrl != null
-                            ? NetworkImage(widget.currentUser.photoUrl!)
-                            : null,
-                        child: widget.currentUser.photoUrl == null
-                            ? Text(widget.currentUser.displayName.isNotEmpty
-                                ? widget.currentUser.displayName[0].toUpperCase()
-                                : '?')
-                            : null,
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: TextField(
-                          controller: _captionController,
-                          maxLines: 4,
-                          style: const TextStyle(color: Colors.white, fontSize: 14),
-                          decoration: const InputDecoration(
-                            hintText: "Write a caption for your Reel...",
-                            hintStyle: TextStyle(color: Colors.white30, fontSize: 14),
-                            border: InputBorder.none,
+                if (widget.mode != 'story') ...[
+                  Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        CircleAvatar(
+                          radius: 18,
+                          backgroundImage: widget.currentUser.photoUrl != null
+                              ? NetworkImage(widget.currentUser.photoUrl!)
+                              : null,
+                          child: widget.currentUser.photoUrl == null
+                              ? Text(
+                                  widget.currentUser.displayName.isNotEmpty
+                                      ? widget.currentUser.displayName[0]
+                                            .toUpperCase()
+                                      : '?',
+                                )
+                              : null,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: TextField(
+                            controller: _captionController,
+                            maxLines: 4,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                            ),
+                            decoration: InputDecoration(
+                              hintText: widget.mode == 'reel'
+                                  ? "Write a caption for your Reel..."
+                                  : "Write a caption for your video...",
+                              hintStyle: const TextStyle(
+                                color: Colors.white30,
+                                fontSize: 14,
+                              ),
+                              border: InputBorder.none,
+                            ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-                
-                const Divider(color: Colors.white12, height: 1),
-                
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  const Divider(color: Colors.white12, height: 1),
+                ],
+
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
                   child: Text(
-                    'Your Reel will be shared to the Reels tab and can be discovered by anyone.',
-                    style: TextStyle(color: Colors.white38, fontSize: 11),
+                    widget.mode == 'story'
+                        ? 'Your video will be shared as a story for 24 hours.'
+                        : widget.mode == 'reel'
+                            ? 'Your Reel will be shared to the Reels tab and can be discovered by anyone.'
+                            : 'Your video will be shared to the Home feed.',
+                    style: const TextStyle(color: Colors.white38, fontSize: 11),
                   ),
                 ),
               ],
             ),
           ),
-          
+
           // Loading spinner
           if (_isUploading)
             Positioned.fill(
               child: Container(
                 color: Colors.black.withValues(alpha: 0.75),
-                child: const Center(
+                child: Center(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       CircularProgressIndicator(color: Colors.white),
                       SizedBox(height: 16),
                       Text(
-                        'Sharing your Reel...',
-                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                        widget.mode == 'story'
+                            ? 'Sharing your story...'
+                            : widget.mode == 'reel'
+                                ? 'Sharing your Reel...'
+                                : 'Sharing your video...',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ],
                   ),
@@ -216,7 +256,7 @@ class _ReelUploadScreenState extends State<ReelUploadScreen> {
     if (_isActionRunning) return;
 
     final caption = _captionController.text.trim();
-    
+
     setState(() {
       _isUploading = true;
       _isActionRunning = true;
@@ -226,10 +266,21 @@ class _ReelUploadScreenState extends State<ReelUploadScreen> {
       // Compress video file client-side before uploading
       File finalVideoFile = widget.videoFile;
       if (mounted) {
-        finalVideoFile = await VideoCompressionService.compressVideo(context, widget.videoFile);
+        finalVideoFile = await VideoCompressionService.compressVideo(
+          context,
+          widget.videoFile,
+        );
       }
-      final String fileName = '${DateTime.now().millisecondsSinceEpoch}_reel.mp4';
-      final refStorage = FirebaseStorage.instance.ref().child('reels_video/$fileName');
+      final String fileName =
+          '${DateTime.now().millisecondsSinceEpoch}_video.mp4';
+      final String folder = widget.mode == 'story'
+          ? 'stories_video'
+          : widget.mode == 'reel'
+              ? 'reels_video'
+              : 'posts_video';
+      final refStorage = FirebaseStorage.instance.ref().child(
+        '$folder/$fileName',
+      );
       final uploadTask = await refStorage.putFile(finalVideoFile);
       final videoUrl = await uploadTask.ref.getDownloadURL();
 
@@ -238,31 +289,72 @@ class _ReelUploadScreenState extends State<ReelUploadScreen> {
         finalVideoFile.path,
         quality: 50,
       );
-      final String thumbFileName = '${DateTime.now().millisecondsSinceEpoch}_reel_thumb.jpg';
-      final refThumb = FirebaseStorage.instance.ref().child('reels_thumbnail/$thumbFileName');
+      final String thumbFileName =
+          '${DateTime.now().millisecondsSinceEpoch}_video_thumb.jpg';
+      final String thumbFolder = widget.mode == 'story'
+          ? 'stories_thumbnail'
+          : widget.mode == 'reel'
+              ? 'reels_thumbnail'
+              : 'posts_thumbnail';
+      final refThumb = FirebaseStorage.instance.ref().child(
+        '$thumbFolder/$thumbFileName',
+      );
       final uploadThumbTask = await refThumb.putFile(thumbnailFile);
       final thumbnailUrl = await uploadThumbTask.ref.getDownloadURL();
 
       // Add document to Firestore
-      await FirebaseFirestore.instance.collection('reels').add({
-        'videoUrl': videoUrl,
-        'thumbnail': thumbnailUrl,
-        'caption': caption,
-        'uid': widget.currentUser.uid,
-        'displayName': widget.currentUser.displayName,
-        'photoUrl': widget.currentUser.photoUrl,
-        'timestamp': FieldValue.serverTimestamp(),
-      });
+      if (widget.mode == 'story') {
+        await FirebaseFirestore.instance.collection('stories').add({
+          'uid': widget.currentUser.uid,
+          'displayName': widget.currentUser.displayName,
+          'photoUrl': widget.currentUser.photoUrl,
+          'type': 'video',
+          'text': caption,
+          'mediaUrl': videoUrl,
+          'gradientIndex': 0,
+          'timestamp': FieldValue.serverTimestamp(),
+        });
+      } else if (widget.mode == 'reel') {
+        await FirebaseFirestore.instance.collection('reels').add({
+          'videoUrl': videoUrl,
+          'thumbnail': thumbnailUrl,
+          'caption': caption,
+          'uid': widget.currentUser.uid,
+          'displayName': widget.currentUser.displayName,
+          'photoUrl': widget.currentUser.photoUrl,
+          'likes': <String>[],
+          'commentsCount': 0,
+          'timestamp': FieldValue.serverTimestamp(),
+        });
+      } else {
+        await FirebaseFirestore.instance.collection('posts').add({
+          'uid': widget.currentUser.uid,
+          'displayName': widget.currentUser.displayName,
+          'photoUrl': widget.currentUser.photoUrl,
+          'text': caption,
+          'mediaUrl': videoUrl,
+          'thumbnailUrl': thumbnailUrl,
+          'type': 'video',
+          'timestamp': FieldValue.serverTimestamp(),
+          'likes': <String>[],
+        });
+      }
 
       if (mounted) {
-        TopNotificationService.showSuccess(context, 'Reel shared successfully!');
-        await Future.delayed(const Duration(seconds: 1));
-        if (mounted) Navigator.pop(context, true);
+        TopNotificationService.showSuccess(
+          context,
+          widget.mode == 'story'
+              ? 'Story shared successfully!'
+              : widget.mode == 'reel'
+                  ? 'Reel shared successfully!'
+                  : 'Video post shared successfully!',
+        );
+        Navigator.pop(context, true);
       }
     } catch (e) {
-      debugPrint("Failed to share reel: $e");
+      debugPrint("Failed to share: $e");
       if (mounted) {
-        TopNotificationService.showError(context, 'Failed to share Reel: $e');
+        TopNotificationService.showError(context, 'Failed to share: $e');
       }
     } finally {
       if (mounted) {

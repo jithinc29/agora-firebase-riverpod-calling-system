@@ -61,29 +61,18 @@ class FollowListScreen extends ConsumerWidget {
                     return userAsync.when(
                       data: (user) {
                         if (user == null) return const SizedBox.shrink();
-                        return Container(
-                          margin: const EdgeInsets.only(bottom: 12),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(16),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.03),
-                                blurRadius: 10,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
                           child: ListTile(
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
                             onTap: () {
                               Navigator.push(context, MaterialPageRoute(builder: (_) => UserProfileScreen(user: user)));
                             },
                             leading: CircleAvatar(
-                              radius: 24,
-                              backgroundColor: const Color(0xFF6366F1).withValues(alpha: 0.1),
-                              backgroundImage: user.photoUrl != null ? CachedNetworkImageProvider(user.photoUrl!) : null,
-                              child: user.photoUrl == null
+                              radius: 26,
+                              backgroundColor: const Color(0xFF6366F1).withOpacity(0.1),
+                              backgroundImage: user.photoUrl != null && user.photoUrl!.isNotEmpty ? CachedNetworkImageProvider(user.photoUrl!) : null,
+                              child: (user.photoUrl == null || user.photoUrl!.isEmpty)
                                   ? Text(
                                       user.displayName.isNotEmpty ? user.displayName[0].toUpperCase() : '?', 
                                       style: const TextStyle(color: Color(0xFF6366F1), fontWeight: FontWeight.bold, fontSize: 18),
@@ -92,9 +81,24 @@ class FollowListScreen extends ConsumerWidget {
                             ),
                             title: Text(
                               user.displayName, 
-                              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: Color(0xFF0F172A)),
+                              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: Color(0xFF0F172A)),
                             ),
-                            trailing: const Icon(Icons.arrow_forward_ios_rounded, color: Color(0xFF64748B), size: 14),
+                            subtitle: Text(
+                              '@${user.displayName.toLowerCase().replaceAll(' ', '_')}',
+                              style: const TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+                            ),
+                            trailing: OutlinedButton(
+                              onPressed: () {
+                                Navigator.push(context, MaterialPageRoute(builder: (_) => UserProfileScreen(user: user)));
+                              },
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(horizontal: 16),
+                                minimumSize: const Size(0, 32),
+                                side: BorderSide(color: Colors.grey.shade300),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              ),
+                              child: const Text('View', style: TextStyle(color: Color(0xFF0F172A), fontSize: 13, fontWeight: FontWeight.w600)),
+                            ),
                           ),
                         );
                       },

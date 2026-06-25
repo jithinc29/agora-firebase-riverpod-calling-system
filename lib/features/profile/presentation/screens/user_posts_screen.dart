@@ -37,15 +37,12 @@ class _UserPostsScreenState extends ConsumerState<UserPostsScreen> {
 
   Future<void> _loadPosts() async {
     setState(() {
-      _posts = List.from(widget.posts);
-      _isLoading = false;
-    });
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scrollController.hasClients && widget.initialIndex > 0) {
-        double averagePostHeight = 500.0;
-        _scrollController.jumpTo(widget.initialIndex * averagePostHeight);
+      if (widget.initialIndex > 0 && widget.initialIndex < widget.posts.length) {
+        _posts = widget.posts.sublist(widget.initialIndex);
+      } else {
+        _posts = List.from(widget.posts);
       }
+      _isLoading = false;
     });
   }
 

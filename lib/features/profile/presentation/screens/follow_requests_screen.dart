@@ -116,30 +116,16 @@ class FollowRequestsScreen extends ConsumerWidget {
         return userAsync.when(
           data: (user) {
             if (user == null) return const SizedBox.shrink();
-            return Container(
-              margin: const EdgeInsets.only(bottom: 12),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: Colors.black.withValues(alpha: 0.04),
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.03),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12),
               child: ListTile(
                 contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
+                  horizontal: 4,
+                  vertical: 0,
                 ),
                 leading: CircleAvatar(
-                  radius: 20,
-                  backgroundImage: user.photoUrl != null
+                  radius: 26,
+                  backgroundImage: user.photoUrl != null && user.photoUrl!.isNotEmpty
                       ? CachedNetworkImageProvider(
                           user.photoUrl!,
                         )
@@ -147,7 +133,7 @@ class FollowRequestsScreen extends ConsumerWidget {
                   backgroundColor: AppColors.primary.withValues(
                     alpha: 0.1,
                   ),
-                  child: user.photoUrl == null
+                  child: (user.photoUrl == null || user.photoUrl!.isEmpty)
                       ? Text(
                           user.displayName.isNotEmpty ? user.displayName[0].toUpperCase() : '?',
                           style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 18),
@@ -157,29 +143,35 @@ class FollowRequestsScreen extends ConsumerWidget {
                 title: Text(
                   user.displayName,
                   style: const TextStyle(
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w700,
                     fontSize: 14,
                     color: AppColors.textPrimary,
                   ),
                 ),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: isReceived
-                      ? [
-                          IconButton(
-                            icon: const Icon(
-                              Icons.check_circle_rounded,
-                              color: AppColors.success,
-                            ),
+                subtitle: Text(
+                  '@${user.displayName.toLowerCase().replaceAll(' ', '_')}',
+                  style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                ),
+                trailing: isReceived
+                    ? Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          ElevatedButton(
                             onPressed: () => ref
                                 .read(userRepositoryProvider)
                                 .acceptFollowRequest(currentUserId, uid),
-                          ),
-                          IconButton(
-                            icon: const Icon(
-                              Icons.cancel_rounded,
-                              color: AppColors.error,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              foregroundColor: Colors.white,
+                              elevation: 0,
+                              minimumSize: const Size(0, 32),
+                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                             ),
+                            child: const Text('Confirm', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                          ),
+                          const SizedBox(width: 8),
+                          OutlinedButton(
                             onPressed: () {
                               ref
                                   .read(userRepositoryProvider)
@@ -188,27 +180,33 @@ class FollowRequestsScreen extends ConsumerWidget {
                                         FieldValue.arrayRemove([uid]),
                                   });
                             },
-                          ),
-                        ]
-                      : [
-                          OutlinedButton(
-                            onPressed: () {
-                              ref
-                                  .read(userRepositoryProvider)
-                                  .updateUserProfile(uid, {
-                                    'pendingFollowRequests':
-                                        FieldValue.arrayRemove([currentUserId]),
-                                  });
-                            },
                             style: OutlinedButton.styleFrom(
-                              foregroundColor: AppColors.textPrimary,
-                              side: BorderSide(color: Colors.black.withValues(alpha: 0.1)),
+                              minimumSize: const Size(0, 32),
+                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                              side: BorderSide(color: Colors.grey.shade300),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                             ),
-                            child: const Text('Cancel', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                            child: const Text('Delete', style: TextStyle(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w600)),
                           ),
                         ],
-                ),
+                      )
+                    : OutlinedButton(
+                        onPressed: () {
+                          ref
+                              .read(userRepositoryProvider)
+                              .updateUserProfile(uid, {
+                                'pendingFollowRequests':
+                                    FieldValue.arrayRemove([currentUserId]),
+                              });
+                        },
+                        style: OutlinedButton.styleFrom(
+                          minimumSize: const Size(0, 32),
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          side: BorderSide(color: Colors.grey.shade300),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                        child: const Text('Requested', style: TextStyle(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w600)),
+                      ),
               ),
             );
           },

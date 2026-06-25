@@ -45,9 +45,7 @@ void main() async {
 
   await container.read(notificationRepositoryProvider).requestPermissions();
 
-  if (await Permission.systemAlertWindow.isDenied) {
-    await Permission.systemAlertWindow.request();
-  }
+  // systemAlertWindow permission request moved to HomeScreen to prevent startup jank
 
   final currentUser = FirebaseAuth.instance.currentUser;
   if (currentUser != null) {
@@ -90,7 +88,7 @@ class MyApp extends ConsumerWidget {
 
     return MaterialApp(
       navigatorKey: navigatorKey,
-      title: 'Agora Calling',
+      title: 'Connectify',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         brightness: Brightness.light,

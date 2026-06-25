@@ -34,78 +34,71 @@ class UserProfileScreen extends ConsumerStatefulWidget {
   ConsumerState<UserProfileScreen> createState() => _UserProfileScreenState();
 }
 
-class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
-  Future<List<Map<String, dynamic>>>? _mediaFuture;
-  List<DocumentSnapshot> _postsDocs = [];
+final userProfileMediaProvider =
+    FutureProvider.family<Map<String, dynamic>, String>((ref, uid) async {
+      final postsFuture = FirebaseFirestore.instance
+          .collection('posts')
+          .where('uid', isEqualTo: uid)
+          .get();
+      final reelsFuture = FirebaseFirestore.instance
+          .collection('reels')
+          .where('uid', isEqualTo: uid)
+          .get();
 
+      final results = await Future.wait([postsFuture, reelsFuture]);
+
+      final postsDocs = results[0].docs.toList();
+      postsDocs.sort((a, b) {
+        final aTime = parseTimestamp(
+          (a.data() as Map<String, dynamic>)['timestamp'],
+        );
+        final bTime = parseTimestamp(
+          (b.data() as Map<String, dynamic>)['timestamp'],
+        );
+        return bTime.compareTo(aTime);
+      });
+
+      final reelsDocs = results[1].docs;
+
+      final List<Map<String, dynamic>> allMedia = [];
+
+      for (var doc in postsDocs) {
+        final data = doc.data() as Map<String, dynamic>;
+        if (data['type'] == 'image' || data['type'] == 'video') {
+          data['id'] = doc.id;
+          data['doc'] = doc;
+          data['source'] = 'post';
+          allMedia.add(data);
+        }
+      }
+
+      for (var doc in reelsDocs) {
+        final data = doc.data() as Map<String, dynamic>;
+        data['id'] = doc.id;
+        data['doc'] = doc;
+        data['source'] = 'reel';
+        data['type'] = 'video';
+        allMedia.add(data);
+      }
+
+      allMedia.sort((a, b) {
+        final aTime = parseTimestamp(a['timestamp']);
+        final bTime = parseTimestamp(b['timestamp']);
+        return bTime.compareTo(aTime);
+      });
+
+      return {'postsCount': postsDocs.length, 'allMedia': allMedia};
+    });
+
+class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
   @override
   void initState() {
     super.initState();
-    _mediaFuture = _fetchUserMedia(widget.user.uid);
 
     // Pre-warm Agora so it's ready when user taps call
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(callControllerProvider.notifier).initEngine(isAudioCall: false);
     });
-  }
-
-  Future<List<Map<String, dynamic>>> _fetchUserMedia(String uid) async {
-    final postsFuture = FirebaseFirestore.instance
-        .collection('posts')
-        .where('uid', isEqualTo: uid)
-        .get();
-    final reelsFuture = FirebaseFirestore.instance
-        .collection('reels')
-        .where('uid', isEqualTo: uid)
-        .get();
-
-    final results = await Future.wait([postsFuture, reelsFuture]);
-
-    final postsDocs = results[0].docs.toList();
-    postsDocs.sort((a, b) {
-      final aTime = parseTimestamp(
-        (a.data() as Map<String, dynamic>)['timestamp'],
-      );
-      final bTime = parseTimestamp(
-        (b.data() as Map<String, dynamic>)['timestamp'],
-      );
-      return bTime.compareTo(aTime);
-    });
-    _postsDocs = postsDocs;
-
-    final reelsDocs = results[1].docs;
-
-    final List<Map<String, dynamic>> allMedia = [];
-
-    for (var doc in postsDocs) {
-      final data = doc.data() as Map<String, dynamic>;
-      if (data['type'] == 'image' || data['type'] == 'video') {
-        data['id'] = doc.id;
-        data['doc'] = doc;
-        data['source'] = 'post';
-        allMedia.add(data);
-      }
-    }
-
-    for (var doc in reelsDocs) {
-      final data = doc.data() as Map<String, dynamic>;
-      data['id'] = doc.id;
-      data['doc'] = doc;
-      data['source'] = 'reel';
-      data['type'] = 'video';
-      allMedia.add(data);
-    }
-
-    allMedia.sort((a, b) {
-      final aTime = parseTimestamp(a['timestamp']);
-      final bTime = parseTimestamp(b['timestamp']);
-      return bTime.compareTo(aTime);
-    });
-    if (mounted) {
-      setState(() {});
-    }
-
-    return allMedia;
   }
 
   void _showOptionsMenu(
@@ -195,6 +188,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
     final userAsync = ref.watch(userDetailsProvider(widget.user.uid));
     final currentUserAsync = ref.watch(currentUserDataProvider);
     final allUsersAsync = ref.watch(allUsersProvider);
+    final mediaAsync = ref.watch(userProfileMediaProvider(widget.user.uid));
 
     return userAsync.when(
       data: (targetUser) {
@@ -292,6 +286,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
                                     isFollowing,
                                     activeTargetFollowers,
                                     activeTargetFollowing,
+                                    mediaAsync,
                                   ),
                                   const SizedBox(height: 16),
                                   if (!isBlocked) ...[
@@ -330,24 +325,11 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
                         ];
                       },
                       body: isFollowing
-                          ? FutureBuilder<List<Map<String, dynamic>>>(
-                              future: _mediaFuture,
-                              builder: (context, snapshot) {
-                                if (snapshot.connectionState ==
-                                    ConnectionState.waiting) {
-                                  return const Center(
-                                    child: CircularProgressIndicator(),
-                                  );
-                                }
-                                if (snapshot.hasError) {
-                                  return Center(
-                                    child: Text(
-                                      'Error: ${snapshot.error}',
-                                      style: const TextStyle(color: Colors.red),
-                                    ),
-                                  );
-                                }
-                                final allMedia = snapshot.data ?? [];
+                          ? mediaAsync.when(
+                              data: (data) {
+                                final allMedia =
+                                    data['allMedia']
+                                        as List<Map<String, dynamic>>;
                                 final videosOnly = allMedia
                                     .where((m) => m['type'] == 'video')
                                     .toList();
@@ -369,6 +351,15 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
                                   ],
                                 );
                               },
+                              loading: () => const Center(
+                                child: CircularProgressIndicator(),
+                              ),
+                              error: (e, st) => Center(
+                                child: Text(
+                                  'Error: $e',
+                                  style: const TextStyle(color: Colors.red),
+                                ),
+                              ),
                             )
                           : _buildPrivateAccountView(),
                     ),
@@ -435,55 +426,25 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
 
         return GestureDetector(
           onTap: () {
-            if (media['source'] == 'reel') {
-              final docsToPass = mediaList
-                  .map((m) => m['doc'] as DocumentSnapshot)
-                  .toList();
-              int targetIndex = docsToPass.indexWhere(
-                (doc) => doc.id == media['id'],
-              );
-              if (targetIndex == -1) targetIndex = 0;
-
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => UserPostsScreen(
-                    currentUser: currentUser,
-                    targetUserId: targetUser.uid,
-                    initialIndex: targetIndex,
-                    posts: docsToPass,
-                  ),
-                ),
-              );
-              return;
-            }
-
-            final postsToPass = isVideosOnly
-                ? _postsDocs
-                      .where(
-                        (p) =>
-                            (p.data() as Map<String, dynamic>)['type'] ==
-                            'video',
-                      )
-                      .toList()
-                : _postsDocs;
-
-            int targetIndex = postsToPass.indexWhere(
-              (p) => p.id == media['id'],
+            final docsToPass = mediaList
+                .map((m) => m['doc'] as DocumentSnapshot)
+                .toList();
+            int targetIndex = docsToPass.indexWhere(
+              (doc) => doc.id == media['id'],
             );
-            if (targetIndex != -1) {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => UserPostsScreen(
-                    currentUser: currentUser,
-                    targetUserId: targetUser.uid,
-                    initialIndex: targetIndex,
-                    posts: postsToPass,
-                  ),
+            if (targetIndex == -1) targetIndex = 0;
+
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => UserPostsScreen(
+                  currentUser: currentUser,
+                  targetUserId: targetUser.uid,
+                  initialIndex: targetIndex,
+                  posts: docsToPass,
                 ),
-              );
-            }
+              ),
+            );
           },
           child: Stack(
             fit: StackFit.expand,
@@ -535,6 +496,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
     bool isFollowing,
     List<String> activeFollowers,
     List<String> activeFollowing,
+    AsyncValue<Map<String, dynamic>> mediaAsync,
   ) {
     final now = DateTime.now();
     final isActuallyOnline =
@@ -595,7 +557,14 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    _buildStatColumn('Posts', '${_postsDocs.length}'),
+                    _buildStatColumn(
+                      'Posts',
+                      mediaAsync.when(
+                        data: (data) => '${data['postsCount']}',
+                        loading: () => '-',
+                        error: (_, __) => '0',
+                      ),
+                    ),
                     _buildStatColumn(
                       'Followers',
                       '${activeFollowers.length}',
@@ -823,8 +792,11 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
   Widget _buildLockedBento() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      color: Colors.white,
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+      ),
       child: Row(
         children: [
           Container(
@@ -1085,25 +1057,33 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
 
 Widget _buildPrivateAccountView() {
   return const Center(
-    child: Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Icon(Icons.lock_outline_rounded, size: 64, color: Colors.black26),
-        SizedBox(height: 16),
-        Text(
-          'This account is private',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: AppColors.textPrimary,
-          ),
+    child: SingleChildScrollView(
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.lock_outline_rounded, size: 64, color: Colors.black26),
+            SizedBox(height: 16),
+            Text(
+              'This account is private',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: AppColors.textPrimary,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            SizedBox(height: 8),
+            Text(
+              'Follow this account to see their photos and videos.',
+              style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
+              textAlign: TextAlign.center,
+            ),
+          ],
         ),
-        SizedBox(height: 8),
-        Text(
-          'Follow this account to see their photos and videos.',
-          style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
-        ),
-      ],
+      ),
     ),
   );
 }
