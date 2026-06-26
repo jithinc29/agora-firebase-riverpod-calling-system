@@ -431,8 +431,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         if (c.value.isInitialized) {
           if (c.value.isPlaying) c.pause();
           c.seekTo(Duration.zero);
-          c.pause();
-          c.setVolume(0);
         }
       }
     }
