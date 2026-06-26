@@ -4,6 +4,7 @@ import 'package:call_project/features/home/presentation/tabs/chats_tab.dart';
 import 'package:call_project/features/home/presentation/tabs/feed_tab.dart';
 import 'package:call_project/features/home/presentation/widgets/post_creator_card.dart';
 import 'package:call_project/features/home/presentation/widgets/feed_post_card.dart';
+import 'package:call_project/features/home/presentation/utils/comments_bottom_sheet_helper.dart';
 import 'package:call_project/core/utils/time_utils.dart';
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -13,7 +14,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:video_player/video_player.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:call_project/features/auth/repository/auth_repository.dart';
@@ -23,16 +23,12 @@ import 'package:call_project/features/users/presentation/screens/user_profile_sc
 import 'package:call_project/features/notifications/presentation/screens/notification_screen.dart';
 import 'package:call_project/features/notifications/data/repository/notification_repository.dart';
 import 'package:call_project/features/auth/models/user_model.dart';
-import 'package:call_project/features/home/presentation/screens/search_bottom_sheet.dart';
-
 import 'package:call_project/features/home/presentation/widgets/custom_bottom_nav_bar.dart';
 import 'package:call_project/core/services/notification_service.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:call_project/features/home/presentation/screens/image_editor_screen.dart';
 import 'package:call_project/features/home/presentation/screens/reel_upload_screen.dart';
 import 'package:call_project/core/providers/refresh_provider.dart';
-import 'package:call_project/features/home/presentation/utils/video_compression_service.dart';
-import 'package:video_compress/video_compress.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 import 'package:shimmer/shimmer.dart';
@@ -804,7 +800,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       currentUser: currentUser,
       user: user,
       onPauseReels: _pauseActiveReel,
-      formatLastSeen: _formatLastSeen,
+      formatLastSeen: formatLastSeen,
     );
   }
 
@@ -853,7 +849,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         if (_hiddenPostIds.contains(doc.id)) {
           return const SizedBox.shrink();
         }
-        return _buildPostCard(doc, currentUser);
+        return FeedPostCard(
+          postDoc: doc,
+          currentUser: currentUser,
+          onPostDeleted: () {
+            _fetchFeedPostsPage(isRefresh: true);
+            ref.read(mediaRefreshProvider.notifier).state++;
+          },
+          onPostHidden: () {
+            setState(() {
+              _hiddenPostIds.add(doc.id);
+            });
+          },
+        );
       },
     );
   }
@@ -936,7 +944,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         }
       },
       onShowComments: (doc) =>
-          _showCommentsBottomSheet(context, doc, currentUser),
+          CommentsBottomSheetHelper.show(context, doc, currentUser),
     );
   }
 
@@ -1266,136 +1274,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       loading: () => _buildHeaderAction(Icons.notifications_none, () {}),
       error: (_, err) => _buildHeaderAction(Icons.notifications_none, () {}),
     );
-  }
-
-  Widget _buildUserTile(UserModel user, UserModel currentUser, DateTime now) {
-    final isActuallyOnline =
-        user.isOnline && now.difference(user.lastSeen!).inMinutes < 2;
-    final isFollowing = currentUser.following.contains(user.uid);
-    final followBack = user.following.contains(currentUser.uid);
-
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
-      decoration: BoxDecoration(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: ListTile(
-        onTap: () {
-          _pauseActiveReel();
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => UserProfileScreen(user: user)),
-          );
-        },
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
-        leading: Stack(
-          children: [
-            Container(
-              width: 50,
-              height: 50,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: const LinearGradient(
-                  colors: [AppColors.primary, AppColors.secondary],
-                ),
-                border: Border.all(color: Colors.white, width: 2),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.primary.withValues(alpha: 0.1),
-                    blurRadius: 10,
-                  ),
-                ],
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(28),
-                child: user.photoUrl != null
-                    ? CachedNetworkImage(
-                        imageUrl: user.photoUrl!,
-                        fit: BoxFit.cover,
-                        placeholder: (context, url) =>
-                            Container(color: Colors.black12),
-                        errorWidget: (context, url, error) =>
-                            const Icon(Icons.error),
-                      )
-                    : Center(
-                        child: Text(
-                          user.displayName[0].toUpperCase(),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 18,
-                          ),
-                        ),
-                      ),
-              ),
-            ),
-            if (isActuallyOnline)
-              Positioned(
-                right: 2,
-                bottom: 2,
-                child: Container(
-                  width: 14,
-                  height: 14,
-                  decoration: BoxDecoration(
-                    color: AppColors.success,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 2),
-                  ),
-                ),
-              ),
-          ],
-        ),
-        title: Text(
-          user.displayName,
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 16,
-            color: AppColors.textPrimary,
-          ),
-        ),
-        subtitle: Row(
-          children: [
-            Text(
-              isActuallyOnline
-                  ? 'Online now'
-                  : _formatLastSeen(user.lastSeen, now),
-              style: const TextStyle(
-                color: AppColors.textSecondary,
-                fontSize: 12,
-              ),
-            ),
-            if (isFollowing && followBack) ...[
-              const SizedBox(width: 8),
-              const Icon(Icons.verified, color: AppColors.primary, size: 14),
-            ] else if (isFollowing) ...[
-              const SizedBox(width: 8),
-              const Text(
-                '• Following',
-                style: TextStyle(
-                  color: AppColors.primary,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ],
-        ),
-        trailing: const Icon(
-          Icons.chevron_right,
-          color: Colors.black12,
-          size: 20,
-        ),
-      ),
-    );
-  }
-
-  String _formatLastSeen(DateTime? lastSeen, DateTime now) {
-    if (lastSeen == null) return 'Never';
-    final difference = now.difference(lastSeen);
-    if (difference.inMinutes < 60) return 'Active ${difference.inMinutes}m ago';
-    if (difference.inHours < 24) return 'Active ${difference.inHours}h ago';
-    return 'Active ${difference.inDays}d ago';
   }
 }
 

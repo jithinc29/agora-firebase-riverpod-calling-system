@@ -8,7 +8,8 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:video_compress/video_compress.dart';
 
 import 'package:call_project/features/auth/models/user_model.dart';
-import 'package:call_project/core/theme/app_colors.dart';
+import 'package:call_project/features/home/presentation/screens/home_screen.dart' show AppColors;
+import 'package:photo_manager/photo_manager.dart';
 import 'package:call_project/features/home/presentation/utils/video_compression_service.dart';
 import 'package:call_project/features/home/presentation/screens/custom_gallery_picker.dart';
 import 'package:call_project/features/home/presentation/screens/image_editor_screen.dart';
@@ -239,7 +240,7 @@ class _PostCreatorCardState extends ConsumerState<PostCreatorCard> {
                   controller: _postController,
                   maxLines: 4,
                   minLines: 1,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     hintText: "What's on your mind?",
                     hintStyle: TextStyle(
                       color: AppColors.textSecondary,
@@ -247,9 +248,9 @@ class _PostCreatorCardState extends ConsumerState<PostCreatorCard> {
                     ),
                     border: InputBorder.none,
                     isDense: true,
-                    contentPadding: EdgeInsets.symmetric(vertical: 6),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 6),
                   ),
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 13,
                     color: AppColors.textPrimary,
                   ),
@@ -259,7 +260,7 @@ class _PostCreatorCardState extends ConsumerState<PostCreatorCard> {
               IconButton(
                 onPressed: () =>
                     _pickInlinePostMedia(ImageSource.gallery, 'image'),
-                icon: const Icon(
+                icon: Icon(
                   Icons.image_outlined,
                   color: AppColors.primary,
                   size: 20,
@@ -272,7 +273,7 @@ class _PostCreatorCardState extends ConsumerState<PostCreatorCard> {
               IconButton(
                 onPressed: () =>
                     _pickInlinePostMedia(ImageSource.gallery, 'video'),
-                icon: const Icon(
+                icon: Icon(
                   Icons.videocam_outlined,
                   color: AppColors.primary,
                   size: 20,
@@ -295,7 +296,7 @@ class _PostCreatorCardState extends ConsumerState<PostCreatorCard> {
                         minimumSize: Size.zero,
                         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       ),
-                      child: const Text(
+                      child: Text(
                         'Post',
                         style: TextStyle(
                           color: AppColors.primary,

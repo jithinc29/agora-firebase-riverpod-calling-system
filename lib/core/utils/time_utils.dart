@@ -16,3 +16,11 @@ int parseTimestamp(dynamic timestamp) {
   }
   return 0;
 }
+
+String formatLastSeen(DateTime? lastSeen, DateTime now) {
+  if (lastSeen == null) return 'Never';
+  final difference = now.difference(lastSeen);
+  if (difference.inMinutes < 60) return 'Active m ago';
+  if (difference.inHours < 24) return 'Active h ago';
+  return 'Active d ago';
+}
