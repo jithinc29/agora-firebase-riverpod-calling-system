@@ -1,53 +1,101 @@
-# 📱 Connectify: Premium Social & Calling App
+<div align="center">
+  
+  <h1>📱 Connectify: Premium Social & Calling App</h1>
+  <p><strong>A Full-Stack Social App Built with Clean Architecture & Riverpod 🚀</strong></p>
 
-### A Full-Stack Social App Built with Clean Architecture & Riverpod 🚀
+  <p>
+    Connectify is a production-ready, feature-rich social media and communication application built in Flutter. It seamlessly combines <strong>Real-time Chat, Video/Audio Calling, and Social Feeds (Posts & Reels)</strong> into a single, premium user experience. Built to impress, this app focuses on robust state management, scalable cloud infrastructure, and top-tier UI/UX design.
+  </p>
 
-Connectify is a production-ready, feature-rich social media and communication application built in Flutter. It seamlessly combines **Real-time Chat, Video/Audio Calling, and Social Feeds (Posts & Reels)** into a single, premium user experience. Built to impress, this app focuses on robust state management, scalable cloud infrastructure, and top-tier UI/UX design.
+  <h3>
+    <a href="https://github.com/jithinc29/agora-firebase-riverpod-calling-system/releases/download/v2.1.0/app-arm64-v8a-release.apk">📥 Download & Test Latest APK</a>
+  </h3>
+</div>
 
----
-
-## 📥 Download & Test Now
-If you are a recruiter or developer looking to test the app instantly, download the latest compiled Android APK directly below:
-- **[📥 Download Latest APK (v2.1.0)](https://github.com/jithinc29/agora-firebase-riverpod-calling-system/releases/download/v2.1.0/app-arm64-v8a-release.apk)**
-
----
+<hr>
 
 ## 🌟 Key Features
 
-### 📞 Real-Time Communication
-- **Instant Audio & Video Calls**: Low-latency, high-quality peer-to-peer communication powered by **Agora RTC**.
-- **Background CallKit Integration**: Native incoming call screens even when the app is killed, using **FCM** and **CallKit**.
-- **Real-Time Chat**: Live messaging system for seamless text-based conversations.
+<table width="100%">
+  <tr>
+    <td width="50%" valign="top">
+      <h3>📞 Real-Time Communication</h3>
+      <ul>
+        <li><strong>Instant Audio & Video Calls</strong>: Low-latency, high-quality peer-to-peer communication powered by <strong>Agora RTC</strong>.</li>
+        <li><strong>Background CallKit</strong>: Native incoming call screens even when the app is killed, using <strong>FCM</strong> and <strong>CallKit</strong>.</li>
+        <li><strong>Real-Time Chat</strong>: Live messaging system for seamless text-based conversations.</li>
+      </ul>
+    </td>
+    <td width="50%" valign="top">
+      <h3>🌐 Social Network</h3>
+      <ul>
+        <li><strong>Dynamic Feeds</strong>: Share photos, short-form videos (Reels), and text updates.</li>
+        <li><strong>Automated Video Compression</strong>: Built-in, on-device video compression.</li>
+        <li><strong>Follower System</strong>: Send requests and build your personal network.</li>
+      </ul>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <h3>🎨 Premium UI/UX</h3>
+      <ul>
+        <li><strong>Modern Aesthetics</strong>: Curated Midnight/Indigo color palettes with soft shadows, dynamic layouts, and fluid micro-animations.</li>
+        <li><strong>Global Typography</strong>: Clean, readable interface using <em>Plus Jakarta Sans</em>.</li>
+      </ul>
+    </td>
+    <td width="50%" valign="top">
+      <h3>🛡️ Robust Architecture</h3>
+      <ul>
+        <li><strong>Clean Architecture</strong>: Strictly layered separation of concerns ensuring scalability.</li>
+        <li><strong>Riverpod</strong>: Reactive, safe, and boilerplate-free global state management.</li>
+        <li><strong>Scalable Cloud Backend</strong>: Automated media deletion via <strong>Firebase Cloud Functions</strong>.</li>
+      </ul>
+    </td>
+  </tr>
+</table>
 
-### 🌐 Social Network
-- **Dynamic Feeds (Posts & Reels)**: Share photos, short-form videos (Reels), and text updates with the community.
-- **Automated Video Compression**: Built-in, on-device video compression and thumbnail generation to save bandwidth and ensure lightning-fast playback.
-- **Follower System**: Send requests, accept/reject followers, and build your personal network.
-- **Global Presence System**: Accurate "Active Now" or "Last Seen" status synchronized across all screens.
-- **Complete Data Control**: Full account scrub options that recursively wipe users' posts, media, messages, and profiles upon account deletion.
-
-### 🎨 Premium UI/UX
-- **Modern Aesthetics**: Curated Midnight/Indigo color palettes with soft shadows, dynamic layouts, and fluid micro-animations.
-- **Global Typography**: Clean, readable interface using *Plus Jakarta Sans*.
-
-### 🛡️ Robust Architecture & Backend
-- **Clean Architecture**: Strictly layered separation of concerns (Presentation, Domain, Data) ensuring scalability, readability, and testability.
-- **Riverpod State Management**: Reactive, safe, and boilerplate-free global state management.
-- **Scalable Cloud Backend**: Automated media deletion, secure webhook handling, and call lifecycle management via **Firebase Cloud Functions** & **Vercel** token generation.
-
----
+<hr>
 
 ## 🏗️ Technical Stack
 
-- **Frontend**: Flutter (Dart)
-- **State Management**: Riverpod (Code Generation)
-- **Backend/Database**: Firebase Firestore & Firebase Storage
-- **Authentication**: Firebase Auth (Email/Password)
-- **Real-Time Audio/Video**: Agora SDK
-- **Push Notifications**: Firebase Cloud Messaging (FCM)
-- **Token Servers**: Vercel Serverless Functions
+<div align="center">
+  <table>
+    <tr>
+      <th>Category</th>
+      <th>Technology</th>
+    </tr>
+    <tr>
+      <td><strong>Frontend</strong></td>
+      <td>Flutter (Dart)</td>
+    </tr>
+    <tr>
+      <td><strong>State Management</strong></td>
+      <td>Riverpod (Code Generation)</td>
+    </tr>
+    <tr>
+      <td><strong>Backend / DB</strong></td>
+      <td>Firebase Firestore & Storage</td>
+    </tr>
+    <tr>
+      <td><strong>Authentication</strong></td>
+      <td>Firebase Auth</td>
+    </tr>
+    <tr>
+      <td><strong>Audio / Video</strong></td>
+      <td>Agora SDK</td>
+    </tr>
+    <tr>
+      <td><strong>Push Notifications</strong></td>
+      <td>Firebase Cloud Messaging (FCM)</td>
+    </tr>
+    <tr>
+      <td><strong>Token Servers</strong></td>
+      <td>Vercel Serverless Functions</td>
+    </tr>
+  </table>
+</div>
 
----
+<br>
 
 ## 🛠️ Setup & Installation
 
@@ -58,31 +106,31 @@ If you are a recruiter or developer looking to test the app instantly, download 
 
 ### 2. Backend Deployment
 
-#### A. Vercel (Agora Token Server)
-Tokens are generated securely on Vercel to protect your App Certificate.
-```powershell
+**A. Vercel (Agora Token Server)**
+```bash
 cd vercel_backend
 vercel --prod --yes
 ```
 
-#### B. Firebase Functions
-Handles FCM background notifications and Agora webhook callbacks.
-```powershell
+**B. Firebase Functions**
+```bash
 cd functions
 firebase deploy --only functions
 ```
 
 ### 3. Build & Run
-```powershell
+```bash
 flutter clean
 flutter pub get
 flutter run
 ```
 
----
+<hr>
 
-## 👤 Author
-**Jithin C** 
-- [GitHub Profile](https://github.com/jithinc29)
-
-*If you're a recruiter looking at this project, feel free to clone it, test it, and reach out! Star ⭐ this repository if you find it helpful!*
+<div align="center">
+  <h3>👤 Author</h3>
+  <p><strong>Jithin C</strong></p>
+  <a href="https://github.com/jithinc29">GitHub Profile</a>
+  <br><br>
+  <p><em>If you're a recruiter looking at this project, feel free to clone it, test it, and reach out! Star ⭐ this repository if you find it helpful!</em></p>
+</div>
