@@ -55,8 +55,20 @@ class _CustomGalleryPickerScreenState extends State<CustomGalleryPickerScreen> {
 
       if (ps.isAuth || ps == PermissionState.limited) {
         debugPrint('[CustomGallery] Requesting albums for type: ${widget.requestType}');
+        final FilterOptionGroup filterOptionGroup = FilterOptionGroup(
+          orders: [
+            const OrderOption(
+              type: OrderOptionType.createDate,
+              asc: false,
+            ),
+          ],
+        );
+
         List<AssetPathEntity> albums = await PhotoManager.getAssetPathList(
           type: widget.requestType,
+          hasAll: true,
+          onlyAll: true,
+          filterOption: filterOptionGroup,
         );
 
         debugPrint('[CustomGallery] Found ${albums.length} albums.');
