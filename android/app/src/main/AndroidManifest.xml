@@ -84,6 +84,11 @@
             </intent-filter>
         </receiver>
 
+        <!-- Disable Impeller due to external texture/VideoPlayer raster jank on Android -->
+        <meta-data
+            android:name="io.flutter.embedding.android.EnableImpeller"
+            android:value="false" />
+
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

@@ -407,7 +407,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       if (_activeReelIndex > 0) _activeReelIndex - 1,
       _activeReelIndex,
       _activeReelIndex + 1,
-      _activeReelIndex + 2,
     };
 
     final reels = _getActiveReelsData();
@@ -430,6 +429,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         if (c.value.isInitialized) {
           if (c.value.isPlaying) c.pause();
           c.seekTo(Duration.zero);
+          c.pause();
+          c.setVolume(0);
         }
       }
     }
@@ -3137,14 +3138,16 @@ class _ReelsPlayerItemState extends ConsumerState<ReelsPlayerItem> {
           GestureDetector(
             onTap: _togglePlayPause,
             child: isInitialized
-                ? SizedBox.expand(
-                    child: FittedBox(
-                      fit: BoxFit.cover,
-                      clipBehavior: Clip.hardEdge,
-                      child: SizedBox(
-                        width: widget.controller!.value.size.width,
-                        height: widget.controller!.value.size.height,
-                        child: VideoPlayer(widget.controller!),
+                ? RepaintBoundary(
+                    child: SizedBox.expand(
+                      child: FittedBox(
+                        fit: BoxFit.cover,
+                        clipBehavior: Clip.hardEdge,
+                        child: SizedBox(
+                          width: widget.controller!.value.size.width,
+                          height: widget.controller!.value.size.height,
+                          child: VideoPlayer(widget.controller!),
+                        ),
                       ),
                     ),
                   )
