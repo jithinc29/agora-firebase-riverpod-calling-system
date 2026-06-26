@@ -2574,272 +2574,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     int tabIndex,
   ) {
     if (tabIndex == 0) {
-      return StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('stories')
-            .orderBy('timestamp', descending: true)
-            .snapshots(),
-        builder: (context, snapshot) {
-          final List<DocumentSnapshot> allDocs = snapshot.data?.docs ?? [];
-          final now = DateTime.now().millisecondsSinceEpoch;
-          final cutoff = now - (24 * 60 * 60 * 1000); // 24 hours ago
-
-          // Group stories by creator UID
-          final Map<String, List<Map<String, dynamic>>> grouped = {};
-          for (var doc in allDocs) {
-            final data = doc.data() as Map<String, dynamic>? ?? {};
-            final uid = data['uid'] ?? '';
-            final timestamp = parseTimestamp(data['timestamp']);
-
-            // Skip stories older than 24 hours
-            if (timestamp > 0 && timestamp < cutoff) continue;
-
-            if (uid.isEmpty) continue;
-            if (uid != currentUser.uid && !currentUser.following.contains(uid))
-              continue;
-            if (!grouped.containsKey(uid)) {
-              grouped[uid] = [];
-            }
-            grouped[uid]!.add({'id': doc.id, ...data});
-          }
-
-          final myStories = grouped[currentUser.uid] ?? [];
-          final otherUsersUids = grouped.keys
-              .where((uid) => uid != currentUser.uid)
-              .toList();
-
-          // Sort other users by the timestamp of their newest story (first in their list)
-          otherUsersUids.sort((a, b) {
-            final tA = parseTimestamp(grouped[a]!.first['timestamp']);
-            final tB = parseTimestamp(grouped[b]!.first['timestamp']);
-            return tB.compareTo(tA);
-          });
-
-          return Container(
-            height: 110,
-            padding: const EdgeInsets.only(
-              top: 14.0,
-              bottom: 6.0,
-              left: 16.0,
-              right: 16.0,
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: ListView.builder(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: 1 + otherUsersUids.length,
-                    itemBuilder: (context, index) {
-                      if (index == 0) {
-                        // Your Story
-                        final hasStories = myStories.isNotEmpty;
-                        return GestureDetector(
-                          onTap: () {
-                            if (hasStories) {
-                              _showStoryViewer(context, myStories);
-                            } else {
-                              _showCreateStoryDialog(context, currentUser);
-                            }
-                          },
-                          child: Padding(
-                            padding: const EdgeInsets.only(right: 14.0),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              crossAxisAlignment: CrossAxisAlignment.center,
-                              children: [
-                                Stack(
-                                  children: [
-                                    Container(
-                                      width: 56,
-                                      height: 56,
-                                      padding: const EdgeInsets.all(3),
-                                      decoration: BoxDecoration(
-                                        shape: BoxShape.circle,
-                                        gradient: hasStories
-                                            ? const LinearGradient(
-                                                colors: [
-                                                  Color(0xFFF9CE34),
-                                                  Color(0xFFEE2A7B),
-                                                  Color(0xFF6228D7),
-                                                ],
-                                                begin: Alignment.topLeft,
-                                                end: Alignment.bottomRight,
-                                              )
-                                            : null,
-                                        border: hasStories
-                                            ? null
-                                            : Border.all(
-                                                color: Colors.grey.shade300,
-                                                width: 1.5,
-                                              ),
-                                      ),
-                                      child: Container(
-                                        padding: const EdgeInsets.all(2),
-                                        decoration: const BoxDecoration(
-                                          color: Colors.white,
-                                          shape: BoxShape.circle,
-                                        ),
-                                        child: CircleAvatar(
-                                          radius: 22,
-                                          backgroundImage:
-                                              currentUser.photoUrl != null &&
-                                                  currentUser
-                                                      .photoUrl!
-                                                      .isNotEmpty
-                                              ? CachedNetworkImageProvider(
-                                                  currentUser.photoUrl!,
-                                                )
-                                              : null,
-                                          child:
-                                              (currentUser.photoUrl == null ||
-                                                  currentUser.photoUrl!.isEmpty)
-                                              ? Text(
-                                                  currentUser
-                                                          .displayName
-                                                          .isNotEmpty
-                                                      ? currentUser
-                                                            .displayName[0]
-                                                            .toUpperCase()
-                                                      : '?',
-                                                )
-                                              : null,
-                                        ),
-                                      ),
-                                    ),
-                                    Positioned(
-                                      right: 0,
-                                      bottom: 0,
-                                      child: GestureDetector(
-                                        onTap: () {
-                                          _showCreateStoryDialog(
-                                            context,
-                                            currentUser,
-                                          );
-                                        },
-                                        child: Container(
-                                          padding: const EdgeInsets.all(2),
-                                          decoration: const BoxDecoration(
-                                            color: Colors.white,
-                                            shape: BoxShape.circle,
-                                          ),
-                                          child: Container(
-                                            decoration: const BoxDecoration(
-                                              color: Color(0xFFEC4899),
-                                              shape: BoxShape.circle,
-                                            ),
-                                            padding: const EdgeInsets.all(2),
-                                            child: const Icon(
-                                              Icons.add,
-                                              color: Colors.white,
-                                              size: 10,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 6),
-                                const SizedBox(
-                                  width: 56,
-                                  child: Text(
-                                    'Your Story',
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      color: AppColors.textSecondary,
-                                      fontWeight: FontWeight.bold,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                    textAlign: TextAlign.center,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        );
-                      }
-
-                      // Other users' stories
-                      final creatorUid = otherUsersUids[index - 1];
-                      final stories = grouped[creatorUid]!;
-                      final firstStory = stories.first;
-                      final String displayName =
-                          firstStory['displayName'] ?? 'User';
-                      final String? photoUrl = firstStory['photoUrl'];
-
-                      return GestureDetector(
-                        onTap: () => _showStoryViewer(context, stories),
-                        child: Padding(
-                          padding: const EdgeInsets.only(right: 14.0),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              Container(
-                                width: 56,
-                                height: 56,
-                                padding: const EdgeInsets.all(3),
-                                decoration: const BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  gradient: LinearGradient(
-                                    colors: [
-                                      Color(0xFFF9CE34),
-                                      Color(0xFFEE2A7B),
-                                      Color(0xFF6228D7),
-                                    ],
-                                    begin: Alignment.topLeft,
-                                    end: Alignment.bottomRight,
-                                  ),
-                                ),
-                                child: Container(
-                                  padding: const EdgeInsets.all(2),
-                                  decoration: const BoxDecoration(
-                                    color: Colors.white,
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: CircleAvatar(
-                                    radius: 22,
-                                    backgroundImage:
-                                        photoUrl != null && photoUrl.isNotEmpty
-                                        ? CachedNetworkImageProvider(photoUrl)
-                                        : null,
-                                    child:
-                                        (photoUrl == null || photoUrl.isEmpty)
-                                        ? Text(
-                                            displayName.isNotEmpty
-                                                ? displayName[0].toUpperCase()
-                                                : '?',
-                                          )
-                                        : null,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 6),
-                              SizedBox(
-                                width: 56,
-                                child: Text(
-                                  displayName,
-                                  style: const TextStyle(
-                                    fontSize: 10,
-                                    color: AppColors.textSecondary,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
+      return StoryHeader(
+        currentUser: currentUser,
+        onStoryTap: (stories) => _showStoryViewer(context, stories),
+        onAddStoryTap: () => _showCreateStoryDialog(context, currentUser),
       );
     }
 
@@ -4047,57 +3785,37 @@ class _StoryViewerDialogState extends State<StoryViewerDialog>
     if (type == 'image' && mediaUrl != null) {
       return Positioned.fill(
         child: RepaintBoundary(
-          child: CachedNetworkImage(
+          child: StoryImageItem(
             imageUrl: mediaUrl,
-            fit: BoxFit.cover,
-            imageBuilder: (context, imageProvider) {
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (mounted &&
-                    !_progressController.isAnimating &&
-                    !_progressController.isCompleted &&
-                    !_isHolding &&
-                    _currentIndex == widget.stories.indexOf(story)) {
-                  _progressController.forward().then((_) {
-                    if (mounted &&
-                        _currentIndex == widget.stories.indexOf(story)) {
-                      _nextStory();
-                    }
-                  });
-                }
-              });
-              return Image(image: imageProvider, fit: BoxFit.cover);
+            onLoaded: () {
+              if (mounted &&
+                  !_progressController.isAnimating &&
+                  !_progressController.isCompleted &&
+                  !_isHolding &&
+                  _currentIndex == widget.stories.indexOf(story)) {
+                _progressController.forward().then((_) {
+                  if (mounted &&
+                      _currentIndex == widget.stories.indexOf(story)) {
+                    _nextStory();
+                  }
+                });
+              }
             },
-            placeholder: (context, url) => const Center(
+            placeholder: const Center(
               child: CircularProgressIndicator(
                 color: Colors.white,
                 strokeWidth: 2,
               ),
             ),
-            errorWidget: (context, url, error) {
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (mounted &&
-                    !_progressController.isAnimating &&
-                    !_progressController.isCompleted &&
-                    !_isHolding &&
-                    _currentIndex == widget.stories.indexOf(story)) {
-                  _progressController.forward().then((_) {
-                    if (mounted &&
-                        _currentIndex == widget.stories.indexOf(story)) {
-                      _nextStory();
-                    }
-                  });
-                }
-              });
-              return Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: colors,
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
+            errorWidget: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: colors,
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                 ),
-              );
-            },
+              ),
+            ),
           ),
         ),
       );
@@ -4307,22 +4025,20 @@ class _StoryViewerDialogState extends State<StoryViewerDialog>
                             padding: const EdgeInsets.symmetric(
                               horizontal: 2.0,
                             ),
-                            child: RepaintBoundary(
-                              child: AnimatedBuilder(
-                                animation: _progressController,
-                                builder: (context, child) {
-                                  double val = 0.0;
-                                  if (index < _currentIndex) {
-                                    val = 1.0;
-                                  } else if (index == _currentIndex) {
-                                    val = _progressController.value;
-                                  }
-                                  return CustomPaint(
-                                    size: const Size(double.infinity, 3),
-                                    painter: _SegmentBarPainter(value: val),
-                                  );
-                                },
-                              ),
+                            child: AnimatedBuilder(
+                              animation: _progressController,
+                              builder: (context, child) {
+                                double val = 0.0;
+                                if (index < _currentIndex) {
+                                  val = 1.0;
+                                } else if (index == _currentIndex) {
+                                  val = _progressController.value;
+                                }
+                                return CustomPaint(
+                                  size: const Size(double.infinity, 3),
+                                  painter: _SegmentBarPainter(value: val),
+                                );
+                              },
                             ),
                           ),
                         );
@@ -4404,9 +4120,17 @@ class _StoryViewerDialogState extends State<StoryViewerDialog>
                               _progressController.stop();
                               _videoController?.pause();
                               try {
-                                await Clipboard.setData(ClipboardData(text: 'https://callproject.app/story/${story['id']}'));
+                                await Clipboard.setData(
+                                  ClipboardData(
+                                    text:
+                                        'https://callproject.app/story/${story['id']}',
+                                  ),
+                                );
                                 if (mounted) {
-                                  TopNotificationService.showSuccess(context, 'Link copied to clipboard!');
+                                  TopNotificationService.showSuccess(
+                                    context,
+                                    'Link copied to clipboard!',
+                                  );
                                   _progressController.forward();
                                   _videoController?.play();
                                 }
@@ -4420,15 +4144,24 @@ class _StoryViewerDialogState extends State<StoryViewerDialog>
                               try {
                                 final storyId = story['id'];
                                 if (storyId != null) {
-                                  await FirebaseFirestore.instance.collection('stories').doc(storyId).delete();
+                                  await FirebaseFirestore.instance
+                                      .collection('stories')
+                                      .doc(storyId)
+                                      .delete();
                                   if (mounted) {
-                                    TopNotificationService.showSuccess(context, 'Story deleted.');
+                                    TopNotificationService.showSuccess(
+                                      context,
+                                      'Story deleted.',
+                                    );
                                     Navigator.of(context).pop();
                                   }
                                 }
                               } catch (e) {
                                 if (mounted) {
-                                  TopNotificationService.showError(context, 'Failed to delete story.');
+                                  TopNotificationService.showError(
+                                    context,
+                                    'Failed to delete story.',
+                                  );
                                   _progressController.forward();
                                   _videoController?.play();
                                 }
@@ -4444,13 +4177,19 @@ class _StoryViewerDialogState extends State<StoryViewerDialog>
                             _videoController?.pause();
                           },
                           itemBuilder: (context) {
-                            final currentUid = FirebaseAuth.instance.currentUser?.uid;
-                            final isOwner = currentUid != null && currentUid == story['uid'];
+                            final currentUid =
+                                FirebaseAuth.instance.currentUser?.uid;
+                            final isOwner =
+                                currentUid != null &&
+                                currentUid == story['uid'];
                             return [
                               if (isOwner)
                                 const PopupMenuItem(
                                   value: 'delete',
-                                  child: Text('Delete Story', style: TextStyle(color: Colors.red)),
+                                  child: Text(
+                                    'Delete Story',
+                                    style: TextStyle(color: Colors.red),
+                                  ),
                                 ),
                               const PopupMenuItem(
                                 value: 'share',
@@ -5128,5 +4867,383 @@ class _SegmentBarPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _SegmentBarPainter oldDelegate) {
     return oldDelegate.value != value;
+  }
+}
+
+class StoryImageItem extends StatefulWidget {
+  final String imageUrl;
+  final VoidCallback onLoaded;
+  final Widget? placeholder;
+  final Widget? errorWidget;
+
+  const StoryImageItem({
+    super.key,
+    required this.imageUrl,
+    required this.onLoaded,
+    this.placeholder,
+    this.errorWidget,
+  });
+
+  @override
+  State<StoryImageItem> createState() => _StoryImageItemState();
+}
+
+class _StoryImageItemState extends State<StoryImageItem> {
+  bool _timerStarted = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return CachedNetworkImage(
+      imageUrl: widget.imageUrl,
+      fit: BoxFit.cover,
+      imageBuilder: (context, imageProvider) {
+        if (!_timerStarted) {
+          _timerStarted = true;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) widget.onLoaded();
+          });
+        }
+        return Image(image: imageProvider, fit: BoxFit.cover);
+      },
+      placeholder: widget.placeholder != null
+          ? (context, url) => widget.placeholder!
+          : null,
+      errorWidget: widget.errorWidget != null
+          ? (context, url, error) {
+              if (!_timerStarted) {
+                _timerStarted = true;
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (mounted) widget.onLoaded();
+                });
+              }
+              return widget.errorWidget!;
+            }
+          : null,
+    );
+  }
+}
+
+class StoryHeader extends StatelessWidget {
+  final UserModel currentUser;
+  final void Function(List<Map<String, dynamic>>) onStoryTap;
+  final void Function() onAddStoryTap;
+
+  const StoryHeader({
+    super.key,
+    required this.currentUser,
+    required this.onStoryTap,
+    required this.onAddStoryTap,
+  });
+
+  List<String> _buildSortedUids(
+    Map<String, List<Map<String, dynamic>>> grouped,
+    String myUid,
+  ) {
+    final uids = grouped.keys.where((uid) => uid != myUid).toList();
+    uids.sort((a, b) {
+      final tA = parseTimestamp(grouped[a]!.first['timestamp']);
+      final tB = parseTimestamp(grouped[b]!.first['timestamp']);
+      return tB.compareTo(tA);
+    });
+    return uids;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('stories')
+          .orderBy('timestamp', descending: true)
+          .snapshots(),
+      builder: (context, snapshot) {
+        final List<DocumentSnapshot> allDocs = snapshot.data?.docs ?? [];
+        final now = DateTime.now().millisecondsSinceEpoch;
+        final cutoff = now - (24 * 60 * 60 * 1000);
+
+        final Map<String, List<Map<String, dynamic>>> grouped = {};
+        for (var doc in allDocs) {
+          final data = doc.data() as Map<String, dynamic>? ?? {};
+          final uid = data['uid'] ?? '';
+          final timestamp = parseTimestamp(data['timestamp']);
+
+          if (timestamp > 0 && timestamp < cutoff) continue;
+          if (uid.isEmpty) continue;
+          if (uid != currentUser.uid && !currentUser.following.contains(uid))
+            continue;
+          if (!grouped.containsKey(uid)) grouped[uid] = [];
+          grouped[uid]!.add({'id': doc.id, ...data});
+        }
+
+        final myStories = grouped[currentUser.uid] ?? [];
+        final otherUsersUids = _buildSortedUids(grouped, currentUser.uid);
+
+        return Container(
+          height: 110,
+          padding: const EdgeInsets.only(
+            top: 14.0,
+            bottom: 6.0,
+            left: 16.0,
+            right: 16.0,
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: 1 + otherUsersUids.length,
+                  itemBuilder: (context, index) {
+                    if (index == 0) {
+                      final hasStories = myStories.isNotEmpty;
+                      return GestureDetector(
+                        onTap: () {
+                          if (hasStories) {
+                            onStoryTap(myStories);
+                          } else {
+                            onAddStoryTap();
+                          }
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.only(right: 14.0),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Stack(
+                                children: [
+                                  Container(
+                                    width: 56,
+                                    height: 56,
+                                    padding: const EdgeInsets.all(3),
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      gradient: hasStories
+                                          ? const LinearGradient(
+                                              colors: [
+                                                Color(0xFFF9CE34),
+                                                Color(0xFFEE2A7B),
+                                                Color(0xFF6228D7),
+                                              ],
+                                              begin: Alignment.topLeft,
+                                              end: Alignment.bottomRight,
+                                            )
+                                          : null,
+                                      border: hasStories
+                                          ? null
+                                          : Border.all(
+                                              color: Colors.grey.shade300,
+                                              width: 1.5,
+                                            ),
+                                    ),
+                                    child: Container(
+                                      padding: const EdgeInsets.all(2),
+                                      decoration: const BoxDecoration(
+                                        color: Colors.white,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: CircleAvatar(
+                                        radius: 22,
+                                        backgroundImage:
+                                            currentUser.photoUrl != null &&
+                                                currentUser.photoUrl!.isNotEmpty
+                                            ? CachedNetworkImageProvider(
+                                                currentUser.photoUrl!,
+                                              )
+                                            : null,
+                                        child:
+                                            (currentUser.photoUrl == null ||
+                                                currentUser.photoUrl!.isEmpty)
+                                            ? Text(
+                                                currentUser
+                                                        .displayName
+                                                        .isNotEmpty
+                                                    ? currentUser.displayName[0]
+                                                          .toUpperCase()
+                                                    : '?',
+                                              )
+                                            : null,
+                                      ),
+                                    ),
+                                  ),
+                                  Positioned(
+                                    right: 0,
+                                    bottom: 0,
+                                    child: GestureDetector(
+                                      onTap: onAddStoryTap,
+                                      child: Container(
+                                        padding: const EdgeInsets.all(2),
+                                        decoration: const BoxDecoration(
+                                          color: Colors.white,
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: Container(
+                                          decoration: const BoxDecoration(
+                                            color: Color(0xFFEC4899),
+                                            shape: BoxShape.circle,
+                                          ),
+                                          padding: const EdgeInsets.all(2),
+                                          child: const Icon(
+                                            Icons.add,
+                                            color: Colors.white,
+                                            size: 10,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 6),
+                              const SizedBox(
+                                width: 56,
+                                child: Text(
+                                  'Your Story',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: AppColors.textSecondary,
+                                    fontWeight: FontWeight.bold,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }
+
+                    final creatorUid = otherUsersUids[index - 1];
+                    final stories = grouped[creatorUid]!;
+                    final firstStory = stories.first;
+                    final String displayName =
+                        firstStory['displayName'] ?? 'User';
+                    final String? photoUrl = firstStory['photoUrl'];
+
+                    return GestureDetector(
+                      onTap: () => onStoryTap(stories),
+                      child: Padding(
+                        padding: const EdgeInsets.only(right: 14.0),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Container(
+                              width: 56,
+                              height: 56,
+                              padding: const EdgeInsets.all(3),
+                              decoration: const BoxDecoration(
+                                shape: BoxShape.circle,
+                                gradient: LinearGradient(
+                                  colors: [
+                                    Color(0xFFF9CE34),
+                                    Color(0xFFEE2A7B),
+                                    Color(0xFF6228D7),
+                                  ],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                              ),
+                              child: Container(
+                                padding: const EdgeInsets.all(2),
+                                decoration: const BoxDecoration(
+                                  color: Colors.white,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: CircleAvatar(
+                                  radius: 22,
+                                  backgroundImage:
+                                      photoUrl != null && photoUrl.isNotEmpty
+                                      ? CachedNetworkImageProvider(photoUrl)
+                                      : null,
+                                  child: (photoUrl == null || photoUrl.isEmpty)
+                                      ? Text(
+                                          displayName.isNotEmpty
+                                              ? displayName[0].toUpperCase()
+                                              : '?',
+                                        )
+                                      : null,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            SizedBox(
+                              width: 56,
+                              child: Text(
+                                displayName,
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  color: AppColors.textSecondary,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class StoryImageItem extends StatefulWidget {
+  final String imageUrl;
+  final VoidCallback onLoaded;
+  final Widget? placeholder;
+  final Widget? errorWidget;
+
+  const StoryImageItem({
+    super.key,
+    required this.imageUrl,
+    required this.onLoaded,
+    this.placeholder,
+    this.errorWidget,
+  });
+
+  @override
+  State<StoryImageItem> createState() => _StoryImageItemState();
+}
+
+class _StoryImageItemState extends State<StoryImageItem> {
+  bool _timerStarted = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return CachedNetworkImage(
+      imageUrl: widget.imageUrl,
+      fit: BoxFit.cover,
+      imageBuilder: (context, imageProvider) {
+        if (!_timerStarted) {
+          _timerStarted = true;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) widget.onLoaded();
+          });
+        }
+        return Image(image: imageProvider, fit: BoxFit.cover);
+      },
+      placeholder: widget.placeholder != null
+          ? (context, url) => widget.placeholder!
+          : null,
+      errorWidget: widget.errorWidget != null
+          ? (context, url, error) {
+              if (!_timerStarted) {
+                _timerStarted = true;
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (mounted) widget.onLoaded();
+                });
+              }
+              return widget.errorWidget!;
+            }
+          : null,
+    );
   }
 }
