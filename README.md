@@ -8,7 +8,7 @@
   </p>
 
   <h3>
-    <a href="https://github.com/jithinc29/agora-firebase-riverpod-calling-system/releases/download/v2.1.0/app-arm64-v8a-release.apk">📥 Download & Test Latest APK</a>
+    <a href="https://github.com/jithinc29/agora-firebase-riverpod-calling-system/releases/download/v3.1.0/v3.1.0.apk">📥 Download & Test Latest APK</a>
   </h3>
 </div>
 
