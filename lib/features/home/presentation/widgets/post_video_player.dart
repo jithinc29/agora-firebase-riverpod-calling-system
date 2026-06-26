@@ -66,10 +66,10 @@ class _PostVideoPlayerState extends ConsumerState<PostVideoPlayer>
 
   void _onVideoPositionChanged() {
     if (_controller == null || !_controller!.value.isInitialized) return;
-    
+
     final position = _controller!.value.position;
     final duration = _controller!.value.duration;
-    
+
     if (duration > Duration.zero && position >= duration) {
       if (!_isVideoFinished && mounted) {
         setState(() {
@@ -112,7 +112,7 @@ class _PostVideoPlayerState extends ConsumerState<PostVideoPlayer>
           _lastKnownAspectRatio = controller.value.aspectRatio;
         });
         _controller?.addListener(_onVideoPositionChanged);
-        
+
         // Apply global mute state immediately on init
         final isMuted = ref.read(feedMuteProvider);
         _controller?.setVolume(isMuted ? 0 : 1);
@@ -143,7 +143,7 @@ class _PostVideoPlayerState extends ConsumerState<PostVideoPlayer>
             _lastKnownAspectRatio = controller.value.aspectRatio;
           });
           _controller?.addListener(_onVideoPositionChanged);
-          
+
           // Apply global mute state immediately on init
           final isMuted = ref.read(feedMuteProvider);
           _controller?.setVolume(isMuted ? 0 : 1);
@@ -398,29 +398,19 @@ class _PostVideoPlayerState extends ConsumerState<PostVideoPlayer>
       }
     } else {
       final actualRatio = controller.value.aspectRatio;
-      // Cap the aspect ratio to a minimum of 4:5 (0.8) for feed videos.
-      // If the video is taller than 4:5 (e.g. 9:16 = 0.5625), force the container to be 4:5.
-      // If it's wider (e.g. 16:9 = 1.77), keep the natural ratio.
-      final displayRatio = actualRatio < 0.8 ? 0.8 : actualRatio;
+      // Cap the aspect ratio to a minimum of 1:1 (1.0) for feed videos to make them shorter.
+      // If the video is taller than a square (e.g. 4:5 or 9:16), force the container to be a square.
+      // If it's wider (e.g. 16:9 = 1.77), keep the natural wider ratio.
+      final displayRatio = actualRatio < 1.0 ? 1.0 : actualRatio;
 
       content = AspectRatio(
         aspectRatio: displayRatio,
         child: Stack(
           alignment: Alignment.center,
           children: [
-            // Video Player (Cropped to fit if needed)
-            SizedBox.expand(
-              child: FittedBox(
-                fit: BoxFit.cover,
-                clipBehavior: Clip.hardEdge,
-                child: SizedBox(
-                  width: controller.value.size.width,
-                  height: controller.value.size.height,
-                  child: VideoPlayer(controller),
-                ),
-              ),
-            ),
-            
+            // Video Player
+            VideoPlayer(controller),
+
             // Watch Again Overlay
             if (_isVideoFinished)
               Positioned.fill(
@@ -430,7 +420,10 @@ class _PostVideoPlayerState extends ConsumerState<PostVideoPlayer>
                     child: GestureDetector(
                       onTap: _restartVideo,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(20),
@@ -444,7 +437,11 @@ class _PostVideoPlayerState extends ConsumerState<PostVideoPlayer>
                         child: const Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.play_arrow_rounded, color: Colors.black, size: 20),
+                            Icon(
+                              Icons.play_arrow_rounded,
+                              color: Colors.black,
+                              size: 20,
+                            ),
                             SizedBox(width: 6),
                             Text(
                               'Watch Again',
@@ -470,8 +467,9 @@ class _PostVideoPlayerState extends ConsumerState<PostVideoPlayer>
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) =>
-                            FullScreenFeedVideoScreen(videoUrl: widget.videoUrl),
+                        builder: (context) => FullScreenFeedVideoScreen(
+                          videoUrl: widget.videoUrl,
+                        ),
                       ),
                     );
                   },
@@ -542,13 +540,13 @@ class _FullScreenFeedVideoScreenState
     super.initState();
     _initVideo();
   }
-  
+
   void _onVideoPositionChanged() {
     if (_controller == null || !_controller!.value.isInitialized) return;
-    
+
     final position = _controller!.value.position;
     final duration = _controller!.value.duration;
-    
+
     if (duration > Duration.zero && position >= duration) {
       if (!_isVideoFinished && mounted) {
         setState(() {
@@ -668,7 +666,7 @@ class _FullScreenFeedVideoScreenState
                               size: 50,
                             ),
                           ),
-                          
+
                         if (_isVideoFinished)
                           Container(
                             color: Colors.black.withValues(alpha: 0.3),
@@ -676,13 +674,18 @@ class _FullScreenFeedVideoScreenState
                               child: GestureDetector(
                                 onTap: _restartVideo,
                                 child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 8,
+                                  ),
                                   decoration: BoxDecoration(
                                     color: Colors.white,
                                     borderRadius: BorderRadius.circular(20),
                                     boxShadow: [
                                       BoxShadow(
-                                        color: Colors.black.withValues(alpha: 0.1),
+                                        color: Colors.black.withValues(
+                                          alpha: 0.1,
+                                        ),
                                         blurRadius: 10,
                                       ),
                                     ],
@@ -690,7 +693,11 @@ class _FullScreenFeedVideoScreenState
                                   child: const Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      Icon(Icons.play_arrow_rounded, color: Colors.black, size: 20),
+                                      Icon(
+                                        Icons.play_arrow_rounded,
+                                        color: Colors.black,
+                                        size: 20,
+                                      ),
                                       SizedBox(width: 6),
                                       Text(
                                         'Watch Again',
@@ -775,4 +782,3 @@ class _FullScreenFeedVideoScreenState
     );
   }
 }
-
