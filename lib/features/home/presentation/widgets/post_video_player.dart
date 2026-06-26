@@ -24,6 +24,7 @@ class _PostVideoPlayerState extends ConsumerState<PostVideoPlayer>
   bool _isInitialized = false;
   bool _isInitializing = false;
   bool _hasError = false;
+  bool _isVideoFinished = false;
 
   // Visibility and lifecycle state tracking
   double _visibleFraction = 0.0;
@@ -63,6 +64,27 @@ class _PostVideoPlayerState extends ConsumerState<PostVideoPlayer>
     }
   }
 
+  void _onVideoPositionChanged() {
+    if (_controller == null || !_controller!.value.isInitialized) return;
+    
+    final position = _controller!.value.position;
+    final duration = _controller!.value.duration;
+    
+    if (duration > Duration.zero && position >= duration) {
+      if (!_isVideoFinished && mounted) {
+        setState(() {
+          _isVideoFinished = true;
+        });
+      }
+    } else {
+      if (_isVideoFinished && mounted) {
+        setState(() {
+          _isVideoFinished = false;
+        });
+      }
+    }
+  }
+
   Future<void> _initializeCachedController() async {
     if (_isDisposed || !mounted) return;
     if (_isInitializing || _isInitialized || _controller != null) return;
@@ -80,7 +102,6 @@ class _PostVideoPlayerState extends ConsumerState<PostVideoPlayer>
         controller = VideoPlayerController.networkUrl(
           Uri.parse(widget.videoUrl),
         );
-        // We use networkUrl to stream the video immediately instead of hanging the thread waiting for a full file download via getSingleFile.
       }
       await controller.initialize();
       if (mounted && !_isDisposed && _isInitializing) {
@@ -90,6 +111,8 @@ class _PostVideoPlayerState extends ConsumerState<PostVideoPlayer>
           _isInitializing = false;
           _lastKnownAspectRatio = controller.value.aspectRatio;
         });
+        _controller?.addListener(_onVideoPositionChanged);
+        
         // Apply global mute state immediately on init
         final isMuted = ref.read(feedMuteProvider);
         _controller?.setVolume(isMuted ? 0 : 1);
@@ -119,6 +142,8 @@ class _PostVideoPlayerState extends ConsumerState<PostVideoPlayer>
             _isInitializing = false;
             _lastKnownAspectRatio = controller.value.aspectRatio;
           });
+          _controller?.addListener(_onVideoPositionChanged);
+          
           // Apply global mute state immediately on init
           final isMuted = ref.read(feedMuteProvider);
           _controller?.setVolume(isMuted ? 0 : 1);
@@ -154,9 +179,10 @@ class _PostVideoPlayerState extends ConsumerState<PostVideoPlayer>
 
     final controller = _controller;
     if (controller != null && _isInitialized) {
-      if (!controller.value.isPlaying) {
+      // If we scroll back to a finished video, let it stay finished until user taps Watch Again
+      if (!controller.value.isPlaying && !_isVideoFinished) {
+        controller.setLooping(false);
         controller.play();
-        controller.setLooping(true);
       }
     }
   }
@@ -171,12 +197,23 @@ class _PostVideoPlayerState extends ConsumerState<PostVideoPlayer>
     }
   }
 
+  void _restartVideo() {
+    if (_controller != null && _isInitialized) {
+      _controller!.seekTo(Duration.zero);
+      _controller!.play();
+      setState(() {
+        _isVideoFinished = false;
+      });
+    }
+  }
+
   void _disposeController() {
     if (_isDisposed) return;
     final controller = _controller;
     _controller = null;
     _isInitialized = false;
     _isInitializing = false;
+    controller?.removeListener(_onVideoPositionChanged);
     controller?.pause();
     controller?.dispose();
     if (mounted) {
@@ -239,6 +276,7 @@ class _PostVideoPlayerState extends ConsumerState<PostVideoPlayer>
       });
     });
 
+    _controller?.removeListener(_onVideoPositionChanged);
     _controller?.pause();
     _controller?.dispose();
     super.dispose();
@@ -366,49 +404,92 @@ class _PostVideoPlayerState extends ConsumerState<PostVideoPlayer>
           children: [
             // Video Player
             VideoPlayer(controller),
-
-            // Single tap handler to open full screen
-            Positioned.fill(
-              child: GestureDetector(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) =>
-                          FullScreenFeedVideoScreen(videoUrl: widget.videoUrl),
-                    ),
-                  );
-                },
-                behavior: HitTestBehavior.opaque,
-                child: const SizedBox(),
-              ),
-            ),
-
-            // ── Global Feed Mute Button (bottom-right) ──────────────────────
-            Positioned(
-              right: 10,
-              bottom: 36,
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: () {
-                  ref.read(feedMuteProvider.notifier).toggle();
-                },
+            
+            // Watch Again Overlay
+            if (_isVideoFinished)
+              Positioned.fill(
                 child: Container(
-                  padding: const EdgeInsets.all(7),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.55),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    isMuted
-                        ? Icons.volume_off_rounded
-                        : Icons.volume_up_rounded,
-                    color: Colors.white,
-                    size: 20,
+                  color: Colors.black.withValues(alpha: 0.3),
+                  child: Center(
+                    child: GestureDetector(
+                      onTap: _restartVideo,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(24),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.1),
+                              blurRadius: 10,
+                            ),
+                          ],
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.play_arrow_rounded, color: Colors.black, size: 24),
+                            SizedBox(width: 8),
+                            Text(
+                              'Watch Again',
+                              style: TextStyle(
+                                color: Colors.black,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   ),
                 ),
               ),
-            ),
+
+            // Single tap handler to open full screen (only if not finished)
+            if (!_isVideoFinished)
+              Positioned.fill(
+                child: GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            FullScreenFeedVideoScreen(videoUrl: widget.videoUrl),
+                      ),
+                    );
+                  },
+                  behavior: HitTestBehavior.opaque,
+                  child: const SizedBox(),
+                ),
+              ),
+
+            // ── Global Feed Mute Button (bottom-right) ──────────────────────
+            if (!_isVideoFinished)
+              Positioned(
+                right: 10,
+                bottom: 36,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () {
+                    ref.read(feedMuteProvider.notifier).toggle();
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(7),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.55),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      isMuted
+                          ? Icons.volume_off_rounded
+                          : Icons.volume_up_rounded,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                  ),
+                ),
+              ),
           ],
         ),
       );
@@ -438,11 +519,33 @@ class _FullScreenFeedVideoScreenState
   VideoPlayerController? _controller;
   bool _isInitialized = false;
   bool _hasError = false;
+  bool _isVideoFinished = false;
 
   @override
   void initState() {
     super.initState();
     _initVideo();
+  }
+  
+  void _onVideoPositionChanged() {
+    if (_controller == null || !_controller!.value.isInitialized) return;
+    
+    final position = _controller!.value.position;
+    final duration = _controller!.value.duration;
+    
+    if (duration > Duration.zero && position >= duration) {
+      if (!_isVideoFinished && mounted) {
+        setState(() {
+          _isVideoFinished = true;
+        });
+      }
+    } else {
+      if (_isVideoFinished && mounted) {
+        setState(() {
+          _isVideoFinished = false;
+        });
+      }
+    }
   }
 
   Future<void> _initVideo() async {
@@ -464,9 +567,10 @@ class _FullScreenFeedVideoScreenState
       setState(() {
         _isInitialized = true;
       });
+      _controller!.addListener(_onVideoPositionChanged);
       final isMuted = ref.read(feedMuteProvider);
       _controller!.setVolume(isMuted ? 0 : 1);
-      _controller!.setLooping(true);
+      _controller!.setLooping(false);
       _controller!.play();
     } catch (e) {
       debugPrint('Failed to load full screen video: $e');
@@ -474,8 +578,19 @@ class _FullScreenFeedVideoScreenState
     }
   }
 
+  void _restartVideo() {
+    if (_controller != null && _isInitialized) {
+      _controller!.seekTo(Duration.zero);
+      _controller!.play();
+      setState(() {
+        _isVideoFinished = false;
+      });
+    }
+  }
+
   @override
   void dispose() {
+    _controller?.removeListener(_onVideoPositionChanged);
     _controller?.pause();
     _controller?.dispose();
     super.dispose();
@@ -506,6 +621,10 @@ class _FullScreenFeedVideoScreenState
                 : _isInitialized && _controller != null
                 ? GestureDetector(
                     onTap: () {
+                      if (_isVideoFinished) {
+                        _restartVideo();
+                        return;
+                      }
                       if (_controller!.value.isPlaying) {
                         _controller!.pause();
                       } else {
@@ -520,7 +639,7 @@ class _FullScreenFeedVideoScreenState
                           aspectRatio: _controller!.value.aspectRatio,
                           child: VideoPlayer(_controller!),
                         ),
-                        if (!_controller!.value.isPlaying)
+                        if (!_controller!.value.isPlaying && !_isVideoFinished)
                           Container(
                             padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
@@ -531,6 +650,41 @@ class _FullScreenFeedVideoScreenState
                               Icons.play_arrow_rounded,
                               color: Colors.white,
                               size: 50,
+                            ),
+                          ),
+                          
+                        if (_isVideoFinished)
+                          Container(
+                            color: Colors.black.withValues(alpha: 0.3),
+                            child: Center(
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(24),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.1),
+                                      blurRadius: 10,
+                                    ),
+                                  ],
+                                ),
+                                child: const Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.play_arrow_rounded, color: Colors.black, size: 24),
+                                    SizedBox(width: 8),
+                                    Text(
+                                      'Watch Again',
+                                      style: TextStyle(
+                                        color: Colors.black,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 15,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ),
                           ),
                       ],
@@ -554,7 +708,7 @@ class _FullScreenFeedVideoScreenState
           ),
 
           // Mute Button
-          if (_isInitialized)
+          if (_isInitialized && !_isVideoFinished)
             Positioned(
               right: 16,
               bottom: 36,
@@ -602,3 +756,4 @@ class _FullScreenFeedVideoScreenState
     );
   }
 }
+
