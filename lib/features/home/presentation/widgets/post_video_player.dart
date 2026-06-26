@@ -398,10 +398,10 @@ class _PostVideoPlayerState extends ConsumerState<PostVideoPlayer>
       }
     } else {
       final actualRatio = controller.value.aspectRatio;
-      // Cap the aspect ratio to a minimum of 1:1 (1.0) for feed videos to make them shorter.
-      // If the video is taller than a square (e.g. 4:5 or 9:16), force the container to be a square.
-      // If it's wider (e.g. 16:9 = 1.77), keep the natural wider ratio.
-      final displayRatio = actualRatio < 1.0 ? 1.0 : actualRatio;
+      // Cap the aspect ratio to a minimum of 4:5 (0.8) for feed videos.
+      // If the video is taller than 4:5 (e.g. 9:16 = 0.5625), force the container to be 4:5.
+      // If it's wider (e.g. 16:9 = 1.77), keep the natural ratio.
+      final displayRatio = actualRatio < 0.8 ? 0.8 : actualRatio;
 
       content = AspectRatio(
         aspectRatio: displayRatio,
