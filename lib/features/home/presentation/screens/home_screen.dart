@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:call_project/features/home/presentation/tabs/reels_tab.dart';
 import 'package:call_project/features/home/presentation/tabs/chats_tab.dart';
+import 'package:call_project/features/home/presentation/tabs/feed_tab.dart';
 import 'package:call_project/core/utils/time_utils.dart';
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -811,74 +812,45 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   }
 
   Widget _buildFeedsTab(UserModel currentUser) {
-    return Container(
-      decoration: const BoxDecoration(color: AppColors.background),
-      child: RefreshIndicator(
-        onRefresh: () => _fetchFeedPostsPage(isRefresh: true),
-        color: AppColors.primary,
-        child: Column(
-          children: [
-            // Post Creator Card
-            _buildPostCreatorCard(currentUser),
-            // Feed List
-            Expanded(
-              child:
-                  _feedPosts.isEmpty &&
-                      (_isLoadingFeedPosts || _hasMoreFeedPosts)
-                  ? const Center(child: CircularProgressIndicator())
-                  : _feedPosts.isEmpty
-                  ? const Center(
-                      child: Text(
-                        'No posts yet. Be the first to share!',
-                        style: TextStyle(color: AppColors.textSecondary),
-                      ),
-                    )
-                  : ListView.builder(
-                      controller: _feedScrollController,
-                      padding: const EdgeInsets.only(top: 4, bottom: 78),
-                      itemCount:
-                          _feedPosts.length +
-                          (_isLoadingFeedPosts ? 1 : 0) +
-                          (_isShowingSuggestedFeed ? 1 : 0),
-                      itemBuilder: (context, index) {
-                        if (_isShowingSuggestedFeed && index == 0) {
-                          return const Padding(
-                            padding: EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 12,
-                            ),
-                            child: Text(
-                              'Suggested for you',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.textSecondary,
-                              ),
-                            ),
-                          );
-                        }
-
-                        final actualIndex = _isShowingSuggestedFeed
-                            ? index - 1
-                            : index;
-
-                        if (actualIndex == _feedPosts.length) {
-                          return const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 16),
-                            child: Center(child: CircularProgressIndicator()),
-                          );
-                        }
-                        final doc = _feedPosts[actualIndex];
-                        if (_hiddenPostIds.contains(doc.id)) {
-                          return const SizedBox.shrink();
-                        }
-                        return _buildPostCard(doc, currentUser);
-                      },
-                    ),
+    return FeedTab(
+      onRefresh: () => _fetchFeedPostsPage(isRefresh: true),
+      postCreatorCard: _buildPostCreatorCard(currentUser),
+      isLoading: _isLoadingFeedPosts,
+      hasMore: _hasMoreFeedPosts,
+      isEmpty: _feedPosts.isEmpty,
+      scrollController: _feedScrollController,
+      itemCount: _feedPosts.length +
+          (_isLoadingFeedPosts ? 1 : 0) +
+          (_isShowingSuggestedFeed ? 1 : 0),
+      itemBuilder: (context, index) {
+        if (_isShowingSuggestedFeed && index == 0) {
+          return const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Text(
+              'Suggested for you',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: AppColors.textSecondary,
+              ),
             ),
-          ],
-        ),
-      ),
+          );
+        }
+
+        final actualIndex = _isShowingSuggestedFeed ? index - 1 : index;
+
+        if (actualIndex == _feedPosts.length) {
+          return const Padding(
+            padding: EdgeInsets.symmetric(vertical: 16),
+            child: Center(child: CircularProgressIndicator()),
+          );
+        }
+        final doc = _feedPosts[actualIndex];
+        if (_hiddenPostIds.contains(doc.id)) {
+          return const SizedBox.shrink();
+        }
+        return _buildPostCard(doc, currentUser);
+      },
     );
   }
 
