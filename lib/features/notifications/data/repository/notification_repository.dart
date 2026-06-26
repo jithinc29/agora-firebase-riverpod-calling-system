@@ -8,7 +8,8 @@ part 'notification_repository.g.dart';
 class NotificationRepository {
   final FirebaseFirestore _firestore;
 
-  NotificationRepository({required FirebaseFirestore firestore}) : _firestore = firestore;
+  NotificationRepository({required FirebaseFirestore firestore})
+    : _firestore = firestore;
 
   Stream<List<NotificationModel>> getNotifications(String uid) {
     return _firestore
@@ -18,10 +19,10 @@ class NotificationRepository {
         .orderBy('timestamp', descending: true)
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs
-          .map((doc) => NotificationModel.fromMap(doc.data()))
-          .toList();
-    });
+          return snapshot.docs
+              .map((doc) => NotificationModel.fromMap(doc.data()))
+              .toList();
+        });
   }
 
   Future<void> addNotification(NotificationModel notification) async {
@@ -71,7 +72,8 @@ Stream<List<NotificationModel>> notifications(Ref ref, String uid) {
 
 @riverpod
 Stream<int> unreadNotificationsCount(Ref ref, String uid) {
-  return ref.watch(notificationRepositoryProvider).getNotifications(uid).map(
-    (list) => list.where((n) => !n.isRead).length
-  );
+  return ref
+      .watch(notificationRepositoryProvider)
+      .getNotifications(uid)
+      .map((list) => list.where((n) => !n.isRead).length);
 }

@@ -1067,7 +1067,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 CachedNetworkImage(
                   imageUrl: thumbnailUrl,
                   fit: BoxFit.cover,
-                  placeholder: (context, url) => Container(color: Colors.grey.shade300),
+                  placeholder: (context, url) =>
+                      Container(color: Colors.grey.shade300),
                   errorWidget: (context, url, error) => const Icon(Icons.error),
                 ),
               if (isVideo)

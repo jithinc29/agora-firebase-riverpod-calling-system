@@ -88,7 +88,8 @@ class CallController extends _$CallController {
     // Shorten channelId to stay under Agora's 64-char limit (UIDs are 28 chars each)
     final shortSenderId = senderId.substring(0, 10);
     final shortReceiverId = receiverId.substring(0, 10);
-    final generatedChannelId = channelId ??
+    final generatedChannelId =
+        channelId ??
         "${shortSenderId}_${shortReceiverId}_${DateTime.now().millisecondsSinceEpoch}";
 
     final call = CallEntity(
@@ -123,8 +124,9 @@ class CallController extends _$CallController {
     } catch (e) {
       debugPrint('Error in makeCall process: $e');
       if (context != null && context.mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Error: $e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
       }
       return null;
     }
@@ -133,12 +135,14 @@ class CallController extends _$CallController {
   Future<void> acceptCall(String channelId, bool isAudioCall) async {
     try {
       // 1. Update status to ongoing with a timestamp for timer sync
-      await ref.read(callRepositoryProvider).updateCallStatus(channelId, 'ongoing');
+      await ref
+          .read(callRepositoryProvider)
+          .updateCallStatus(channelId, 'ongoing');
       await ref.read(callRepositoryProvider).updateCallData(channelId, {
         'ongoingAt': DateTime.now().millisecondsSinceEpoch,
       });
-      
-      // 2. The navigation and Agora join is handled by the CallScreen, 
+
+      // 2. The navigation and Agora join is handled by the CallScreen,
       // but we could also centralize it here if needed.
     } catch (e) {
       debugPrint('Error in acceptCall: $e');

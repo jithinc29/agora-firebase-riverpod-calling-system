@@ -29,7 +29,9 @@ class AuthController extends _$AuthController {
       print('FCM Token retrieval failed: $e');
     }
     final result = await AsyncValue.guard(
-      () => ref.read(authRepositoryProvider).signUp(email, password, name, fcmToken),
+      () => ref
+          .read(authRepositoryProvider)
+          .signUp(email, password, name, fcmToken),
     );
     if (_mounted) {
       state = result;

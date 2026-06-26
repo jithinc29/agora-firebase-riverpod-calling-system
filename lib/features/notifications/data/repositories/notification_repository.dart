@@ -12,15 +12,11 @@ class NotificationRepository {
   NotificationRepository({
     required FirebaseMessaging messaging,
     required FirebaseFirestore firestore,
-  })  : _messaging = messaging,
-        _firestore = firestore;
+  }) : _messaging = messaging,
+       _firestore = firestore;
 
   Future<void> requestPermissions() async {
-    await _messaging.requestPermission(
-      alert: true,
-      badge: true,
-      sound: true,
-    );
+    await _messaging.requestPermission(alert: true, badge: true, sound: true);
   }
 
   Future<String?> getToken() async {

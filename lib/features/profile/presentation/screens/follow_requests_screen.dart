@@ -23,79 +23,113 @@ class FollowRequestsScreen extends ConsumerWidget {
 
     return userAsync.when(
       data: (currentUser) {
-        if (currentUser == null) return const Scaffold(body: Center(child: Text('User not found')));
+        if (currentUser == null)
+          return const Scaffold(body: Center(child: Text('User not found')));
         final reactivePendingRequests = currentUser.pendingFollowRequests;
 
         return allUsersAsync.when(
           data: (allUsers) {
             final registeredUids = allUsers.map((u) => u.uid).toSet();
-            final activeReceivedUids = reactivePendingRequests.where((uid) => registeredUids.contains(uid)).toList();
-            
+            final activeReceivedUids = reactivePendingRequests
+                .where((uid) => registeredUids.contains(uid))
+                .toList();
+
             final activeSentUids = allUsers
                 .where((u) => u.pendingFollowRequests.contains(currentUserId))
                 .map((u) => u.uid)
                 .toList();
 
-        return DefaultTabController(
-          length: 2,
-          child: Scaffold(
+            return DefaultTabController(
+              length: 2,
+              child: Scaffold(
+                backgroundColor: const Color(0xFFF8FAFC),
+                appBar: AppBar(
+                  backgroundColor: Colors.transparent,
+                  elevation: 0,
+                  centerTitle: true,
+                  leading: IconButton(
+                    icon: const Icon(
+                      Icons.arrow_back_ios_new_rounded,
+                      color: Color(0xFF0F172A),
+                      size: 20,
+                    ),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                  title: const Text(
+                    'Follow Requests',
+                    style: TextStyle(
+                      color: Color(0xFF0F172A),
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  bottom: const TabBar(
+                    indicatorColor: Color(0xFF6366F1),
+                    labelColor: Color(0xFF6366F1),
+                    unselectedLabelColor: Color(0xFF64748B),
+                    labelStyle: TextStyle(fontWeight: FontWeight.bold),
+                    tabs: [
+                      Tab(text: 'Received'),
+                      Tab(text: 'Sent'),
+                    ],
+                  ),
+                ),
+                body: TabBarView(
+                  children: [
+                    _buildRequestsList(
+                      context,
+                      ref,
+                      activeReceivedUids,
+                      isReceived: true,
+                    ),
+                    _buildRequestsList(
+                      context,
+                      ref,
+                      activeSentUids,
+                      isReceived: false,
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+          loading: () => const Scaffold(
+            backgroundColor: Color(0xFFF8FAFC),
+            body: Center(child: CircularProgressIndicator()),
+          ),
+          error: (e, st) => Scaffold(
             backgroundColor: const Color(0xFFF8FAFC),
-            appBar: AppBar(
-              backgroundColor: Colors.transparent,
-              elevation: 0,
-              centerTitle: true,
-              leading: IconButton(
-                icon: const Icon(
-                  Icons.arrow_back_ios_new_rounded,
-                  color: Color(0xFF0F172A),
-                  size: 20,
-                ),
-                onPressed: () => Navigator.pop(context),
-              ),
-              title: const Text(
-                'Follow Requests',
-                style: TextStyle(
-                  color: Color(0xFF0F172A),
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              bottom: const TabBar(
-                indicatorColor: Color(0xFF6366F1),
-                labelColor: Color(0xFF6366F1),
-                unselectedLabelColor: Color(0xFF64748B),
-                labelStyle: TextStyle(fontWeight: FontWeight.bold),
-                tabs: [
-                  Tab(text: 'Received'),
-                  Tab(text: 'Sent'),
-                ],
-              ),
-            ),
-            body: TabBarView(
-              children: [
-                _buildRequestsList(context, ref, activeReceivedUids, isReceived: true),
-                _buildRequestsList(context, ref, activeSentUids, isReceived: false),
-              ],
-            ),
+            body: Center(child: Text('Error: $e')),
           ),
         );
-          },
-          loading: () => const Scaffold(backgroundColor: Color(0xFFF8FAFC), body: Center(child: CircularProgressIndicator())),
-          error: (e, st) => Scaffold(backgroundColor: const Color(0xFFF8FAFC), body: Center(child: Text('Error: $e'))),
-        );
       },
-      loading: () => const Scaffold(backgroundColor: Color(0xFFF8FAFC), body: Center(child: CircularProgressIndicator())),
-      error: (e, st) => Scaffold(backgroundColor: const Color(0xFFF8FAFC), body: Center(child: Text('Error: $e'))),
+      loading: () => const Scaffold(
+        backgroundColor: Color(0xFFF8FAFC),
+        body: Center(child: CircularProgressIndicator()),
+      ),
+      error: (e, st) => Scaffold(
+        backgroundColor: const Color(0xFFF8FAFC),
+        body: Center(child: Text('Error: $e')),
+      ),
     );
   }
 
-  Widget _buildRequestsList(BuildContext context, WidgetRef ref, List<String> uids, {required bool isReceived}) {
+  Widget _buildRequestsList(
+    BuildContext context,
+    WidgetRef ref,
+    List<String> uids, {
+    required bool isReceived,
+  }) {
     if (uids.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(isReceived ? Icons.mail_outline_rounded : Icons.send_rounded, size: 48, color: Colors.grey.shade400),
+            Icon(
+              isReceived ? Icons.mail_outline_rounded : Icons.send_rounded,
+              size: 48,
+              color: Colors.grey.shade400,
+            ),
             const SizedBox(height: 16),
             Text(
               isReceived ? 'No pending requests' : 'No sent requests',
@@ -125,18 +159,21 @@ class FollowRequestsScreen extends ConsumerWidget {
                 ),
                 leading: CircleAvatar(
                   radius: 26,
-                  backgroundImage: user.photoUrl != null && user.photoUrl!.isNotEmpty
-                      ? CachedNetworkImageProvider(
-                          user.photoUrl!,
-                        )
+                  backgroundImage:
+                      user.photoUrl != null && user.photoUrl!.isNotEmpty
+                      ? CachedNetworkImageProvider(user.photoUrl!)
                       : null,
-                  backgroundColor: AppColors.primary.withValues(
-                    alpha: 0.1,
-                  ),
+                  backgroundColor: AppColors.primary.withValues(alpha: 0.1),
                   child: (user.photoUrl == null || user.photoUrl!.isEmpty)
                       ? Text(
-                          user.displayName.isNotEmpty ? user.displayName[0].toUpperCase() : '?',
-                          style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 18),
+                          user.displayName.isNotEmpty
+                              ? user.displayName[0].toUpperCase()
+                              : '?',
+                          style: const TextStyle(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 18,
+                          ),
                         )
                       : null,
                 ),
@@ -150,7 +187,10 @@ class FollowRequestsScreen extends ConsumerWidget {
                 ),
                 subtitle: Text(
                   '@${user.displayName.toLowerCase().replaceAll(' ', '_')}',
-                  style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: AppColors.textSecondary,
+                  ),
                 ),
                 trailing: isReceived
                     ? Row(
@@ -165,10 +205,20 @@ class FollowRequestsScreen extends ConsumerWidget {
                               foregroundColor: Colors.white,
                               elevation: 0,
                               minimumSize: const Size(0, 32),
-                              padding: const EdgeInsets.symmetric(horizontal: 16),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
                             ),
-                            child: const Text('Confirm', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                            child: const Text(
+                              'Confirm',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                           ),
                           const SizedBox(width: 8),
                           OutlinedButton(
@@ -182,36 +232,57 @@ class FollowRequestsScreen extends ConsumerWidget {
                             },
                             style: OutlinedButton.styleFrom(
                               minimumSize: const Size(0, 32),
-                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                              ),
                               side: BorderSide(color: Colors.grey.shade300),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
                             ),
-                            child: const Text('Delete', style: TextStyle(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w600)),
+                            child: const Text(
+                              'Delete',
+                              style: TextStyle(
+                                color: AppColors.textPrimary,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                           ),
                         ],
                       )
                     : OutlinedButton(
                         onPressed: () {
-                          ref
-                              .read(userRepositoryProvider)
-                              .updateUserProfile(uid, {
-                                'pendingFollowRequests':
-                                    FieldValue.arrayRemove([currentUserId]),
-                              });
+                          ref.read(userRepositoryProvider).updateUserProfile(
+                            uid,
+                            {
+                              'pendingFollowRequests': FieldValue.arrayRemove([
+                                currentUserId,
+                              ]),
+                            },
+                          );
                         },
                         style: OutlinedButton.styleFrom(
                           minimumSize: const Size(0, 32),
                           padding: const EdgeInsets.symmetric(horizontal: 16),
                           side: BorderSide(color: Colors.grey.shade300),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
                         ),
-                        child: const Text('Requested', style: TextStyle(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w600)),
+                        child: const Text(
+                          'Requested',
+                          style: TextStyle(
+                            color: AppColors.textPrimary,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       ),
               ),
             );
           },
-          loading: () =>
-              const Center(child: CircularProgressIndicator()),
+          loading: () => const Center(child: CircularProgressIndicator()),
           error: (err, _) => const SizedBox.shrink(),
         );
       },

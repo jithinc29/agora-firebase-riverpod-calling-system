@@ -11,7 +11,8 @@ class UserModel {
   final List<String> followers;
   final List<String> following;
   final List<String> blockedUsers;
-  final List<String> pendingFollowRequests; // UIDs of people requesting to follow ME
+  final List<String>
+  pendingFollowRequests; // UIDs of people requesting to follow ME
 
   UserModel({
     required this.uid,
@@ -55,15 +56,17 @@ class UserModel {
       isOnline: map['isOnline'] ?? false,
       lastCallId: map['lastCallId'],
       fcmToken: map['fcmToken'],
-      lastSeen: map['lastSeen'] != null 
-          ? DateTime.fromMillisecondsSinceEpoch(map['lastSeen']) 
+      lastSeen: map['lastSeen'] != null
+          ? DateTime.fromMillisecondsSinceEpoch(map['lastSeen'])
           : null,
       phoneNumber: map['phoneNumber'],
       photoUrl: map['photoUrl'],
       followers: List<String>.from(map['followers'] ?? []),
       following: List<String>.from(map['following'] ?? []),
       blockedUsers: List<String>.from(map['blockedUsers'] ?? []),
-      pendingFollowRequests: List<String>.from(map['pendingFollowRequests'] ?? []),
+      pendingFollowRequests: List<String>.from(
+        map['pendingFollowRequests'] ?? [],
+      ),
     );
   }
 
@@ -95,7 +98,8 @@ class UserModel {
       followers: followers ?? this.followers,
       following: following ?? this.following,
       blockedUsers: blockedUsers ?? this.blockedUsers,
-      pendingFollowRequests: pendingFollowRequests ?? this.pendingFollowRequests,
+      pendingFollowRequests:
+          pendingFollowRequests ?? this.pendingFollowRequests,
     );
   }
 }

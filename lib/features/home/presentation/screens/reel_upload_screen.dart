@@ -73,8 +73,8 @@ class _ReelUploadScreenState extends State<ReelUploadScreen> {
           widget.mode == 'story'
               ? 'New Story'
               : widget.mode == 'reel'
-                  ? 'New Reel'
-                  : 'New Video Post',
+              ? 'New Reel'
+              : 'New Video Post',
           style: const TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.bold,
@@ -209,8 +209,8 @@ class _ReelUploadScreenState extends State<ReelUploadScreen> {
                     widget.mode == 'story'
                         ? 'Your video will be shared as a story for 24 hours.'
                         : widget.mode == 'reel'
-                            ? 'Your Reel will be shared to the Reels tab and can be discovered by anyone.'
-                            : 'Your video will be shared to the Home feed.',
+                        ? 'Your Reel will be shared to the Reels tab and can be discovered by anyone.'
+                        : 'Your video will be shared to the Home feed.',
                     style: const TextStyle(color: Colors.white38, fontSize: 11),
                   ),
                 ),
@@ -233,8 +233,8 @@ class _ReelUploadScreenState extends State<ReelUploadScreen> {
                         widget.mode == 'story'
                             ? 'Sharing your story...'
                             : widget.mode == 'reel'
-                                ? 'Sharing your Reel...'
-                                : 'Sharing your video...',
+                            ? 'Sharing your Reel...'
+                            : 'Sharing your video...',
                         style: const TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
@@ -276,8 +276,8 @@ class _ReelUploadScreenState extends State<ReelUploadScreen> {
       final String folder = widget.mode == 'story'
           ? 'stories_video'
           : widget.mode == 'reel'
-              ? 'reels_video'
-              : 'posts_video';
+          ? 'reels_video'
+          : 'posts_video';
       final refStorage = FirebaseStorage.instance.ref().child(
         '$folder/$fileName',
       );
@@ -294,8 +294,8 @@ class _ReelUploadScreenState extends State<ReelUploadScreen> {
       final String thumbFolder = widget.mode == 'story'
           ? 'stories_thumbnail'
           : widget.mode == 'reel'
-              ? 'reels_thumbnail'
-              : 'posts_thumbnail';
+          ? 'reels_thumbnail'
+          : 'posts_thumbnail';
       final refThumb = FirebaseStorage.instance.ref().child(
         '$thumbFolder/$thumbFileName',
       );
@@ -346,8 +346,8 @@ class _ReelUploadScreenState extends State<ReelUploadScreen> {
           widget.mode == 'story'
               ? 'Story shared successfully!'
               : widget.mode == 'reel'
-                  ? 'Reel shared successfully!'
-                  : 'Video post shared successfully!',
+              ? 'Reel shared successfully!'
+              : 'Video post shared successfully!',
         );
         Navigator.pop(context, true);
       }

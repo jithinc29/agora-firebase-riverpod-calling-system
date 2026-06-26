@@ -56,7 +56,9 @@ class _SearchBottomSheetState extends State<SearchBottomSheet> {
     final bgColor = isDarkMode ? Colors.black : Colors.white;
     final textColor = isDarkMode ? Colors.white : AppColors.textPrimary;
     final subTextColor = isDarkMode ? Colors.white54 : AppColors.textSecondary;
-    final searchBgColor = isDarkMode ? const Color(0xFF262626) : Colors.grey.shade100;
+    final searchBgColor = isDarkMode
+        ? const Color(0xFF262626)
+        : Colors.grey.shade100;
 
     return Container(
       color: bgColor,
@@ -79,14 +81,20 @@ class _SearchBottomSheetState extends State<SearchBottomSheet> {
                     decoration: InputDecoration(
                       hintText: 'Search...',
                       hintStyle: TextStyle(color: subTextColor),
-                      prefixIcon: Icon(Icons.search_rounded, color: subTextColor),
+                      prefixIcon: Icon(
+                        Icons.search_rounded,
+                        color: subTextColor,
+                      ),
                       filled: true,
                       fillColor: searchBgColor,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(24),
                         borderSide: BorderSide.none,
                       ),
-                      contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
+                      contentPadding: const EdgeInsets.symmetric(
+                        vertical: 0,
+                        horizontal: 16,
+                      ),
                     ),
                     onChanged: (value) {
                       setState(() {
@@ -98,9 +106,12 @@ class _SearchBottomSheetState extends State<SearchBottomSheet> {
               ],
             ),
           ),
-          
+
           // Divider
-          Divider(height: 1, color: isDarkMode ? Colors.white12 : Colors.grey.shade200),
+          Divider(
+            height: 1,
+            color: isDarkMode ? Colors.white12 : Colors.grey.shade200,
+          ),
 
           // Search Results
           Expanded(
@@ -109,14 +120,14 @@ class _SearchBottomSheetState extends State<SearchBottomSheet> {
                 final filteredUsers = users.where((u) {
                   if (u.uid == widget.currentUser?.uid) return false;
                   if (u.displayName.trim().isEmpty) return false;
-                  
+
                   final query = _searchQuery.trim().toLowerCase();
-                  
+
                   if (query.isEmpty) {
                     if (_removedUserIds.contains(u.uid)) return false;
-                    return true; 
+                    return true;
                   }
-                  
+
                   return u.displayName.toLowerCase().contains(query);
                 }).toList();
 
@@ -135,10 +146,14 @@ class _SearchBottomSheetState extends State<SearchBottomSheet> {
                   itemBuilder: (context, index) {
                     final user = filteredUsers[index];
                     return ListTile(
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 0,
+                      ),
                       leading: CircleAvatar(
                         radius: 22,
-                        backgroundImage: user.photoUrl != null && user.photoUrl!.isNotEmpty
+                        backgroundImage:
+                            user.photoUrl != null && user.photoUrl!.isNotEmpty
                             ? CachedNetworkImageProvider(user.photoUrl!)
                             : null,
                         backgroundColor: AppColors.primary.withOpacity(0.1),
@@ -163,19 +178,22 @@ class _SearchBottomSheetState extends State<SearchBottomSheet> {
                       ),
                       subtitle: Text(
                         'User • ${user.isOnline ? 'Online' : 'Offline'}',
-                        style: TextStyle(
-                          color: subTextColor,
-                          fontSize: 11,
-                        ),
+                        style: TextStyle(color: subTextColor, fontSize: 11),
                       ),
-                      trailing: _searchQuery.trim().isEmpty ? IconButton(
-                        icon: Icon(Icons.close_rounded, color: subTextColor, size: 18),
-                        onPressed: () {
-                          setState(() {
-                            _removedUserIds.add(user.uid);
-                          });
-                        },
-                      ) : null,
+                      trailing: _searchQuery.trim().isEmpty
+                          ? IconButton(
+                              icon: Icon(
+                                Icons.close_rounded,
+                                color: subTextColor,
+                                size: 18,
+                              ),
+                              onPressed: () {
+                                setState(() {
+                                  _removedUserIds.add(user.uid);
+                                });
+                              },
+                            )
+                          : null,
                       onTap: () {
                         // Navigate to profile
                         Navigator.push(
@@ -190,7 +208,9 @@ class _SearchBottomSheetState extends State<SearchBottomSheet> {
                 );
               },
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Center(child: Text('Error: $e', style: TextStyle(color: textColor))),
+              error: (e, _) => Center(
+                child: Text('Error: $e', style: TextStyle(color: textColor)),
+              ),
             ),
           ),
         ],

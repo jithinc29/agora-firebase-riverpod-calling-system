@@ -19,9 +19,12 @@ class CallKitService {
       return;
     }
     _shownChannels.add(channelId);
-    
+
     // Clean up old channels after 5 minutes
-    Future.delayed(const Duration(minutes: 5), () => _shownChannels.remove(channelId));
+    Future.delayed(
+      const Duration(minutes: 5),
+      () => _shownChannels.remove(channelId),
+    );
 
     final params = CallKitParams(
       id: channelId, // Use channelId for internal plugin de-duplication

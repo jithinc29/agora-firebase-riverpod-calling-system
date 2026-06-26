@@ -13,13 +13,12 @@ part 'user_repository.g.dart';
 class UserRepository {
   final FirebaseFirestore _firestore;
 
-  UserRepository({required FirebaseFirestore firestore}) : _firestore = firestore;
+  UserRepository({required FirebaseFirestore firestore})
+    : _firestore = firestore;
 
   Future<List<UserModel>> getAllUsers() async {
     final snapshot = await _firestore.collection('users').get();
-    return snapshot.docs
-        .map((doc) => UserModel.fromMap(doc.data()))
-        .toList();
+    return snapshot.docs.map((doc) => UserModel.fromMap(doc.data())).toList();
   }
 
   Stream<UserModel?> getUser(String uid) {
@@ -36,7 +35,10 @@ class UserRepository {
   // --- Social Logic ---
 
   Future<void> sendFollowRequest(String currentUid, String targetUid) async {
-    final currentDoc = await _firestore.collection('users').doc(currentUid).get();
+    final currentDoc = await _firestore
+        .collection('users')
+        .doc(currentUid)
+        .get();
     final currentName = currentDoc.data()?['displayName'] ?? 'Someone';
     final currentPhoto = currentDoc.data()?['photoUrl'];
 
@@ -85,7 +87,7 @@ class UserRepository {
 
   Future<void> acceptFollowRequest(String currentUid, String senderUid) async {
     final batch = _firestore.batch();
-    
+
     final currentDoc = _firestore.collection('users').doc(currentUid);
     final senderDoc = _firestore.collection('users').doc(senderUid);
 
@@ -184,16 +186,19 @@ class UserRepository {
     required String type,
   }) {
     // Using the existing Vercel signaling endpoint as a generic notification gateway
-    http.post(
-      Uri.parse('${AgoraConfig.tokenBaseUrl}/api/initiate_call'),
-      headers: {'Content-Type': 'application/json'},
-      body: json.encode({
-        't': type,
-        'title': title,
-        'body': body,
-        'receiverToken': token,
-      }),
-    ).timeout(const Duration(seconds: 10)).catchError((e) => http.Response('error', 500));
+    http
+        .post(
+          Uri.parse('${AgoraConfig.tokenBaseUrl}/api/initiate_call'),
+          headers: {'Content-Type': 'application/json'},
+          body: json.encode({
+            't': type,
+            'title': title,
+            'body': body,
+            'receiverToken': token,
+          }),
+        )
+        .timeout(const Duration(seconds: 10))
+        .catchError((e) => http.Response('error', 500));
   }
 }
 

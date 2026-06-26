@@ -32,7 +32,9 @@ class NotificationService extends _$NotificationService {
 
     switch (event.event) {
       case Event.actionCallAccept:
-        debugPrint('[GLOBAL-DEBUG] Accept event captured for $channelId. Checking status...');
+        debugPrint(
+          '[GLOBAL-DEBUG] Accept event captured for $channelId. Checking status...',
+        );
         globalActiveCallId = channelId;
 
         // Speedy update to ongoing to prevent CallListener from re-triggering
@@ -49,12 +51,18 @@ class NotificationService extends _$NotificationService {
               .doc(channelId)
               .get();
           if (!callDoc.exists) {
-            debugPrint('[GLOBAL-DEBUG] Call $channelId no longer exists. Ignoring.');
+            debugPrint(
+              '[GLOBAL-DEBUG] Call $channelId no longer exists. Ignoring.',
+            );
             return;
           }
           final status = callDoc.data()?['status'] ?? 'ended';
-          if (status == 'ended' || status == 'cancelled' || status == 'declined') {
-            debugPrint('[GLOBAL-DEBUG] Call $channelId is in status $status. Ignoring.');
+          if (status == 'ended' ||
+              status == 'cancelled' ||
+              status == 'declined') {
+            debugPrint(
+              '[GLOBAL-DEBUG] Call $channelId is in status $status. Ignoring.',
+            );
             return;
           }
         } catch (e) {
@@ -75,19 +83,21 @@ class NotificationService extends _$NotificationService {
         }
 
         if (navigatorKey.currentState != null) {
-          navigatorKey.currentState!.push(
-            MaterialPageRoute(
-              settings: const RouteSettings(name: '/call_screen'),
-              builder: (_) => CallScreen(
-                channelId: channelId,
-                guestUser: guestUser,
-                isAudioCall: body['type']?.toString() == '0',
-                isOutgoing: false,
-              ),
-            ),
-          ).then((_) {
-            if (globalActiveCallId == channelId) globalActiveCallId = null;
-          });
+          navigatorKey.currentState!
+              .push(
+                MaterialPageRoute(
+                  settings: const RouteSettings(name: '/call_screen'),
+                  builder: (_) => CallScreen(
+                    channelId: channelId,
+                    guestUser: guestUser,
+                    isAudioCall: body['type']?.toString() == '0',
+                    isOutgoing: false,
+                  ),
+                ),
+              )
+              .then((_) {
+                if (globalActiveCallId == channelId) globalActiveCallId = null;
+              });
         }
         break;
 
@@ -101,7 +111,9 @@ class NotificationService extends _$NotificationService {
         }
         if (FirebaseAuth.instance.currentUser != null) {
           try {
-            await ref.read(callRepositoryProvider).updateCallStatus(channelId, 'declined');
+            await ref
+                .read(callRepositoryProvider)
+                .updateCallStatus(channelId, 'declined');
           } catch (e) {
             debugPrint('[GLOBAL-DEBUG] Decline FAILED: $e');
           }
@@ -112,7 +124,9 @@ class NotificationService extends _$NotificationService {
         debugPrint('[GLOBAL-DEBUG] Timeout event captured for $channelId');
         if (globalActiveCallId == channelId) globalActiveCallId = null;
         if (FirebaseAuth.instance.currentUser != null) {
-          ref.read(callRepositoryProvider).updateCallStatus(channelId, 'timed_out');
+          ref
+              .read(callRepositoryProvider)
+              .updateCallStatus(channelId, 'timed_out');
         }
         break;
 
@@ -170,7 +184,9 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     final now = DateTime.now();
     final difference = now.difference(sentTime).inSeconds;
     if (difference > 60) {
-      debugPrint('[BG-LOG] Ignoring stale FCM message ($difference seconds old)');
+      debugPrint(
+        '[BG-LOG] Ignoring stale FCM message ($difference seconds old)',
+      );
       return;
     }
   }
@@ -189,7 +205,11 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     return;
   }
 
-  final String callerName = data['cn'] ?? data['callerName'] ?? data['senderName'] ?? 'Unknown Caller';
+  final String callerName =
+      data['cn'] ??
+      data['callerName'] ??
+      data['senderName'] ??
+      'Unknown Caller';
 
   await CallKitService.showIncomingCall(
     callerName: callerName,
@@ -198,50 +218,56 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     isAudioCall: data['ac'].toString() == 'true',
   );
 
-  // 5. PERSISTENT MONITOR: While the ringer is active, listen to Firestore 
+  // 5. PERSISTENT MONITOR: While the ringer is active, listen to Firestore
   final completer = Completer<void>();
   StreamSubscription? statusSub;
-  
+
   statusSub = FirebaseFirestore.instance
       .collection('calls')
       .doc(channelId)
       .snapshots()
       .listen((snapshot) async {
-    if (!snapshot.exists) {
-      await FlutterCallkitIncoming.endAllCalls();
-      statusSub?.cancel();
-      if (!completer.isCompleted) completer.complete();
-      return;
-    }
+        if (!snapshot.exists) {
+          await FlutterCallkitIncoming.endAllCalls();
+          statusSub?.cancel();
+          if (!completer.isCompleted) completer.complete();
+          return;
+        }
 
-    final currentStatus = snapshot.data()?['status'];
-    if (currentStatus != 'dialing' && currentStatus != null) {
-      await FlutterCallkitIncoming.endAllCalls();
-      statusSub?.cancel();
-      if (!completer.isCompleted) completer.complete();
-    }
-  });
+        final currentStatus = snapshot.data()?['status'];
+        if (currentStatus != 'dialing' && currentStatus != null) {
+          await FlutterCallkitIncoming.endAllCalls();
+          statusSub?.cancel();
+          if (!completer.isCompleted) completer.complete();
+        }
+      });
 
   // BACKGROUND SIGNALING
   final sub = FlutterCallkitIncoming.onEvent.listen((event) async {
     if (event == null) return;
-    if (event.event == Event.actionCallAccept || 
-        event.event == Event.actionCallDecline || 
+    if (event.event == Event.actionCallAccept ||
+        event.event == Event.actionCallDecline ||
         event.event == Event.actionCallTimeout) {
       statusSub?.cancel();
       if (!completer.isCompleted) completer.complete();
     }
-    
+
     final bgContainer = ProviderContainer();
     final body = Map<String, dynamic>.from(event.body as Map);
-    final extra = body['extra'] != null ? Map<String, dynamic>.from(body['extra'] as Map) : null;
+    final extra = body['extra'] != null
+        ? Map<String, dynamic>.from(body['extra'] as Map)
+        : null;
     final eventChannelId = extra?['channelId'] ?? body['id'];
 
     if (eventChannelId == channelId) {
       if (event.event == Event.actionCallDecline) {
-        await bgContainer.read(callRepositoryProvider).updateCallStatus(channelId, 'declined');
+        await bgContainer
+            .read(callRepositoryProvider)
+            .updateCallStatus(channelId, 'declined');
       } else if (event.event == Event.actionCallTimeout) {
-        await bgContainer.read(callRepositoryProvider).updateCallStatus(channelId, 'timed_out');
+        await bgContainer
+            .read(callRepositoryProvider)
+            .updateCallStatus(channelId, 'timed_out');
       } else if (event.event == Event.actionCallAccept) {
         FirebaseFirestore.instance.collection('calls').doc(channelId).set({
           'status': 'ongoing',
@@ -273,7 +299,10 @@ class TopNotificationService {
             Expanded(
               child: Text(
                 message,
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ),
           ],
@@ -297,7 +326,10 @@ class TopNotificationService {
             Expanded(
               child: Text(
                 message,
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ),
           ],

@@ -83,5 +83,4 @@ class DefaultFirebaseOptions {
     authDomain: 'calling-app-v2.firebaseapp.com',
     storageBucket: 'calling-app-v2.firebasestorage.app',
   );
-
 }

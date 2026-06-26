@@ -96,11 +96,12 @@ class AuthRepository {
         .snapshots()
         .map((doc) => doc.exists ? UserModel.fromMap(doc.data()!) : null);
   }
+
   Future<void> deleteAccount() async {
     final user = _auth.currentUser;
     if (user != null) {
       final uid = user.uid;
-      
+
       final batch = _firestore.batch();
 
       // 1. Delete user document
@@ -166,16 +167,19 @@ class AuthRepository {
       }
 
       // 4. Delete posts and their media
-      final userPosts = await _firestore.collection('posts').where('uid', isEqualTo: uid).get();
+      final userPosts = await _firestore
+          .collection('posts')
+          .where('uid', isEqualTo: uid)
+          .get();
       for (var doc in userPosts.docs) {
         final data = doc.data();
         final urls = [
           data['mediaUrl'] as String?,
           data['videoUrl'] as String?,
           data['thumbnailUrl'] as String?,
-          data['thumbnail'] as String?
+          data['thumbnail'] as String?,
         ].where((u) => u != null && u.isNotEmpty).toList();
-        
+
         for (final url in urls) {
           try {
             await FirebaseStorage.instance.refFromURL(url!).delete();
@@ -185,14 +189,17 @@ class AuthRepository {
       }
 
       // 5. Delete reels and their media
-      final userReels = await _firestore.collection('reels').where('uid', isEqualTo: uid).get();
+      final userReels = await _firestore
+          .collection('reels')
+          .where('uid', isEqualTo: uid)
+          .get();
       for (var doc in userReels.docs) {
         final data = doc.data();
         final urls = [
           data['videoUrl'] as String?,
-          data['thumbnail'] as String?
+          data['thumbnail'] as String?,
         ].where((u) => u != null && u.isNotEmpty).toList();
-        
+
         for (final url in urls) {
           try {
             await FirebaseStorage.instance.refFromURL(url!).delete();
@@ -202,7 +209,10 @@ class AuthRepository {
       }
 
       // 6. Delete stories and their media
-      final userStories = await _firestore.collection('stories').where('uid', isEqualTo: uid).get();
+      final userStories = await _firestore
+          .collection('stories')
+          .where('uid', isEqualTo: uid)
+          .get();
       for (var doc in userStories.docs) {
         final data = doc.data();
         final imageUrl = data['imageUrl'] as String?;
@@ -215,7 +225,10 @@ class AuthRepository {
       }
 
       // 7. Delete chats and their messages
-      final userChats = await _firestore.collection('chats').where('users', arrayContains: uid).get();
+      final userChats = await _firestore
+          .collection('chats')
+          .where('users', arrayContains: uid)
+          .get();
       for (var doc in userChats.docs) {
         final messages = await doc.reference.collection('messages').get();
         for (var msg in messages.docs) {
@@ -246,6 +259,6 @@ Stream<UserModel?> currentUserData(Ref ref) {
   final authState = ref.watch(authStateChangesProvider);
   final user = authState.asData?.value;
   if (user == null) return Stream.value(null);
-  
+
   return ref.watch(authRepositoryProvider).getUserData(user.uid);
 }

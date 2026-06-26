@@ -21,7 +21,7 @@ class ChatScreen extends ConsumerStatefulWidget {
 class _ChatScreenState extends ConsumerState<ChatScreen> {
   final _messageController = TextEditingController();
   final _scrollController = ScrollController();
-  
+
   final Set<String> _selectedMessageIds = {};
   bool _isSelectionMode = false;
 
@@ -41,7 +41,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   void _markAsRead() {
     final currentUser = ref.read(firebaseAuthProvider).currentUser;
     if (currentUser != null) {
-      ref.read(chatRepositoryProvider).markMessagesAsRead(currentUser.uid, widget.receiver.uid);
+      ref
+          .read(chatRepositoryProvider)
+          .markMessagesAsRead(currentUser.uid, widget.receiver.uid);
     }
   }
 
@@ -63,7 +65,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
     ref.read(chatRepositoryProvider).sendMessage(message);
     _messageController.clear();
-    setState(() {}); 
+    setState(() {});
   }
 
   void _toggleSelection(String messageId) {
@@ -83,7 +85,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     if (currentUser == null) return;
 
     for (var id in _selectedMessageIds) {
-      ref.read(chatRepositoryProvider).deleteMessage(currentUser.uid, widget.receiver.uid, id);
+      ref
+          .read(chatRepositoryProvider)
+          .deleteMessage(currentUser.uid, widget.receiver.uid, id);
     }
 
     setState(() {
@@ -96,7 +100,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   Widget build(BuildContext context) {
     final currentUser = ref.watch(firebaseAuthProvider).currentUser;
     final messagesAsync = currentUser != null
-        ? ref.watch(chatMessagesProvider(currentUserId: currentUser.uid, receiverId: widget.receiver.uid))
+        ? ref.watch(
+            chatMessagesProvider(
+              currentUserId: currentUser.uid,
+              receiverId: widget.receiver.uid,
+            ),
+          )
         : const AsyncValue.loading();
 
     return Scaffold(
@@ -109,7 +118,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [Color(0xFFE0F2FE), Color(0xFFFEF3C7), Color(0xFFFCE7F3)],
+                colors: [
+                  Color(0xFFE0F2FE),
+                  Color(0xFFFEF3C7),
+                  Color(0xFFFCE7F3),
+                ],
               ),
             ),
           ),
@@ -126,20 +139,29 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                       itemBuilder: (context, index) {
                         final message = messages[index];
                         final isMe = message.senderId == currentUser?.uid;
-                        final isSelected = _selectedMessageIds.contains(message.id);
-                        
+                        final isSelected = _selectedMessageIds.contains(
+                          message.id,
+                        );
+
                         return GestureDetector(
-                          onLongPress: isMe ? () => _toggleSelection(message.id) : null,
-                          onTap: _isSelectionMode ? () => _toggleSelection(message.id) : null,
+                          onLongPress: isMe
+                              ? () => _toggleSelection(message.id)
+                              : null,
+                          onTap: _isSelectionMode
+                              ? () => _toggleSelection(message.id)
+                              : null,
                           child: Container(
-                            color: isSelected ? Colors.purple.withValues(alpha: 0.1) : Colors.transparent,
+                            color: isSelected
+                                ? Colors.purple.withValues(alpha: 0.1)
+                                : Colors.transparent,
                             child: _buildMessageBubble(message, isMe),
                           ),
                         );
                       },
                     );
                   },
-                  loading: () => const Center(child: CircularProgressIndicator()),
+                  loading: () =>
+                      const Center(child: CircularProgressIndicator()),
                   error: (e, st) => Center(child: Text('Error: $e')),
                 ),
               ),
@@ -156,14 +178,31 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       backgroundColor: Colors.white.withValues(alpha: 0.8),
       elevation: 0,
       leading: IconButton(
-        icon: const Icon(Icons.chevron_left, color: Color(0xFF1A1C1E), size: 30),
+        icon: const Icon(
+          Icons.chevron_left,
+          color: Color(0xFF1A1C1E),
+          size: 30,
+        ),
         onPressed: () => Navigator.pop(context),
       ),
       centerTitle: true,
       title: Column(
         children: [
-          Text(widget.receiver.displayName, style: const TextStyle(color: Color(0xFF1A1C1E), fontWeight: FontWeight.bold, fontSize: 16)),
-          Text(widget.receiver.isOnline ? 'Online' : 'Offline', style: TextStyle(color: widget.receiver.isOnline ? Colors.green : Colors.grey, fontSize: 10)),
+          Text(
+            widget.receiver.displayName,
+            style: const TextStyle(
+              color: Color(0xFF1A1C1E),
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+            ),
+          ),
+          Text(
+            widget.receiver.isOnline ? 'Online' : 'Offline',
+            style: TextStyle(
+              color: widget.receiver.isOnline ? Colors.green : Colors.grey,
+              fontSize: 10,
+            ),
+          ),
         ],
       ),
     );
@@ -180,7 +219,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           _isSelectionMode = false;
         }),
       ),
-      title: Text('${_selectedMessageIds.length} selected', style: const TextStyle(color: Colors.white)),
+      title: Text(
+        '${_selectedMessageIds.length} selected',
+        style: const TextStyle(color: Colors.white),
+      ),
       actions: [
         IconButton(
           icon: const Icon(Icons.delete, color: Colors.white),
@@ -194,7 +236,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Row(
-        mainAxisAlignment: isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
+        mainAxisAlignment: isMe
+            ? MainAxisAlignment.end
+            : MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           if (!isMe) _buildAvatar(),
@@ -203,24 +247,41 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               decoration: BoxDecoration(
-                color: isMe ? const Color(0xFF6366F1) : Colors.white.withValues(alpha: 0.9),
+                color: isMe
+                    ? const Color(0xFF6366F1)
+                    : Colors.white.withValues(alpha: 0.9),
                 borderRadius: BorderRadius.only(
                   topLeft: const Radius.circular(20),
                   topRight: const Radius.circular(20),
                   bottomLeft: Radius.circular(isMe ? 20 : 5),
                   bottomRight: Radius.circular(isMe ? 5 : 20),
                 ),
-                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4))],
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   if (message.type == MessageType.text)
-                    Text(message.content, style: TextStyle(color: isMe ? Colors.white : const Color(0xFF1A1C1E), fontSize: 15)),
+                    Text(
+                      message.content,
+                      style: TextStyle(
+                        color: isMe ? Colors.white : const Color(0xFF1A1C1E),
+                        fontSize: 15,
+                      ),
+                    ),
                   const SizedBox(height: 4),
                   Text(
                     DateFormat('HH:mm').format(message.timestamp),
-                    style: TextStyle(color: (isMe ? Colors.white70 : Colors.grey.shade400), fontSize: 10),
+                    style: TextStyle(
+                      color: (isMe ? Colors.white70 : Colors.grey.shade400),
+                      fontSize: 10,
+                    ),
                   ),
                 ],
               ),
@@ -234,11 +295,20 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   Widget _buildAvatar({bool isMe = false}) {
-    final photoUrl = isMe ? ref.read(currentUserDataProvider).asData?.value?.photoUrl : widget.receiver.photoUrl;
+    final photoUrl = isMe
+        ? ref.read(currentUserDataProvider).asData?.value?.photoUrl
+        : widget.receiver.photoUrl;
     return CircleAvatar(
       radius: 18,
-      backgroundImage: photoUrl != null ? CachedNetworkImageProvider(photoUrl) : null,
-      child: photoUrl == null ? Text(isMe ? 'Me' : widget.receiver.displayName[0], style: const TextStyle(fontSize: 10)) : null,
+      backgroundImage: photoUrl != null
+          ? CachedNetworkImageProvider(photoUrl)
+          : null,
+      child: photoUrl == null
+          ? Text(
+              isMe ? 'Me' : widget.receiver.displayName[0],
+              style: const TextStyle(fontSize: 10),
+            )
+          : null,
     );
   }
 
@@ -249,7 +319,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(30),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 5))],
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 5),
+          ),
+        ],
       ),
       child: Row(
         children: [
@@ -258,7 +334,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             child: TextField(
               controller: _messageController,
               onChanged: (_) => setState(() {}),
-              decoration: const InputDecoration(hintText: 'Message...', border: InputBorder.none, contentPadding: EdgeInsets.symmetric(horizontal: 12)),
+              decoration: const InputDecoration(
+                hintText: 'Message...',
+                border: InputBorder.none,
+                contentPadding: EdgeInsets.symmetric(horizontal: 12),
+              ),
             ),
           ),
           IconButton(

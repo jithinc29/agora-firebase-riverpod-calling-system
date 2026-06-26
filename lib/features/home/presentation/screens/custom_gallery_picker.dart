@@ -7,14 +7,12 @@ import 'package:video_player/video_player.dart';
 
 class CustomGalleryPickerScreen extends StatefulWidget {
   final RequestType requestType;
-  
-  const CustomGalleryPickerScreen({
-    super.key, 
-    required this.requestType,
-  });
+
+  const CustomGalleryPickerScreen({super.key, required this.requestType});
 
   @override
-  State<CustomGalleryPickerScreen> createState() => _CustomGalleryPickerScreenState();
+  State<CustomGalleryPickerScreen> createState() =>
+      _CustomGalleryPickerScreenState();
 }
 
 class _CustomGalleryPickerScreenState extends State<CustomGalleryPickerScreen> {
@@ -24,7 +22,7 @@ class _CustomGalleryPickerScreenState extends State<CustomGalleryPickerScreen> {
   bool _isLoading = false;
   bool _hasMore = true;
   bool _isLimitedPermission = false;
-  
+
   VideoPlayerController? _videoController;
 
   @override
@@ -46,7 +44,7 @@ class _CustomGalleryPickerScreenState extends State<CustomGalleryPickerScreen> {
     try {
       final PermissionState ps = await PhotoManager.requestPermissionExtend();
       debugPrint('[CustomGallery] Permission State: $ps');
-      
+
       if (mounted) {
         setState(() {
           _isLimitedPermission = ps == PermissionState.limited;
@@ -54,13 +52,12 @@ class _CustomGalleryPickerScreenState extends State<CustomGalleryPickerScreen> {
       }
 
       if (ps.isAuth || ps == PermissionState.limited) {
-        debugPrint('[CustomGallery] Requesting albums for type: ${widget.requestType}');
+        debugPrint(
+          '[CustomGallery] Requesting albums for type: ${widget.requestType}',
+        );
         final FilterOptionGroup filterOptionGroup = FilterOptionGroup(
           orders: [
-            const OrderOption(
-              type: OrderOptionType.createDate,
-              asc: false,
-            ),
+            const OrderOption(type: OrderOptionType.createDate, asc: false),
           ],
         );
 
@@ -73,25 +70,34 @@ class _CustomGalleryPickerScreenState extends State<CustomGalleryPickerScreen> {
 
         debugPrint('[CustomGallery] Found ${albums.length} albums.');
         for (var album in albums) {
-          debugPrint('[CustomGallery] Album: ${album.name}, count: ${await album.assetCountAsync}');
+          debugPrint(
+            '[CustomGallery] Album: ${album.name}, count: ${await album.assetCountAsync}',
+          );
         }
 
         if (albums.isNotEmpty) {
           List<AssetEntity> media = [];
-          
+
           // First try to get media from the 'Recent' (first) album
           media = await albums[0].getAssetListPaged(
             page: _currentPage,
             size: 30,
           );
-          
-          debugPrint('[CustomGallery] Recent album returned ${media.length} items.');
-          
+
+          debugPrint(
+            '[CustomGallery] Recent album returned ${media.length} items.',
+          );
+
           // Fallback: If 'Recent' is empty, loop through other albums to find videos
           if (media.isEmpty && _currentPage == 0 && albums.length > 1) {
             for (int i = 1; i < albums.length; i++) {
-              final albumMedia = await albums[i].getAssetListPaged(page: 0, size: 30);
-              debugPrint('[CustomGallery] Fallback Album ${albums[i].name} returned ${albumMedia.length} items.');
+              final albumMedia = await albums[i].getAssetListPaged(
+                page: 0,
+                size: 30,
+              );
+              debugPrint(
+                '[CustomGallery] Fallback Album ${albums[i].name} returned ${albumMedia.length} items.',
+              );
               if (albumMedia.isNotEmpty) {
                 media = albumMedia;
                 break;
@@ -128,7 +134,7 @@ class _CustomGalleryPickerScreenState extends State<CustomGalleryPickerScreen> {
 
   void _selectEntity(AssetEntity entity) async {
     if (_selectedEntity == entity) return;
-    
+
     setState(() {
       _selectedEntity = entity;
     });
@@ -158,7 +164,10 @@ class _CustomGalleryPickerScreenState extends State<CustomGalleryPickerScreen> {
     if (widget.requestType == RequestType.video) {
       file = await picker.pickVideo(source: ImageSource.camera);
     } else {
-      file = await picker.pickImage(source: ImageSource.camera, imageQuality: 70);
+      file = await picker.pickImage(
+        source: ImageSource.camera,
+        imageQuality: 70,
+      );
     }
 
     if (file != null && mounted) {
@@ -171,7 +180,9 @@ class _CustomGalleryPickerScreenState extends State<CustomGalleryPickerScreen> {
     if (_selectedEntity != null) {
       final file = await _selectedEntity!.file;
       if (file != null && mounted) {
-        final type = _selectedEntity!.type == AssetType.video ? 'video' : 'image';
+        final type = _selectedEntity!.type == AssetType.video
+            ? 'video'
+            : 'image';
         Navigator.pop(context, {'file': file, 'type': type});
       }
     }
@@ -187,13 +198,20 @@ class _CustomGalleryPickerScreenState extends State<CustomGalleryPickerScreen> {
           icon: const Icon(Icons.close, color: Colors.white),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Text(widget.requestType == RequestType.video ? 'New reel' : 'New post', style: const TextStyle(color: Colors.white)),
+        title: Text(
+          widget.requestType == RequestType.video ? 'New reel' : 'New post',
+          style: const TextStyle(color: Colors.white),
+        ),
         actions: [
           TextButton(
             onPressed: _selectedEntity != null ? _onNextTap : null,
             child: const Text(
               'Next',
-              style: TextStyle(color: Colors.blue, fontSize: 16, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                color: Colors.blue,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
         ],
@@ -207,25 +225,39 @@ class _CustomGalleryPickerScreenState extends State<CustomGalleryPickerScreen> {
               color: Colors.black,
               width: double.infinity,
               child: _selectedEntity == null
-                  ? (_isLoading 
-                      ? const Center(child: CircularProgressIndicator(color: Colors.white))
-                      : const Center(child: Text('No media found', style: TextStyle(color: Colors.white, fontSize: 16))))
-                  : _selectedEntity!.type == AssetType.video && _videoController != null && _videoController!.value.isInitialized
-                      ? AspectRatio(
-                          aspectRatio: _videoController!.value.aspectRatio,
-                          child: VideoPlayer(_videoController!),
-                        )
-                      : Image(
-                          image: AssetEntityImageProvider(
-                            _selectedEntity!,
-                            isOriginal: true,
-                            thumbnailSize: const ThumbnailSize.square(800),
-                          ),
-                          fit: BoxFit.contain,
-                        ),
+                  ? (_isLoading
+                        ? const Center(
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Center(
+                            child: Text(
+                              'No media found',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ))
+                  : _selectedEntity!.type == AssetType.video &&
+                        _videoController != null &&
+                        _videoController!.value.isInitialized
+                  ? AspectRatio(
+                      aspectRatio: _videoController!.value.aspectRatio,
+                      child: VideoPlayer(_videoController!),
+                    )
+                  : Image(
+                      image: AssetEntityImageProvider(
+                        _selectedEntity!,
+                        isOriginal: true,
+                        thumbnailSize: const ThumbnailSize.square(800),
+                      ),
+                      fit: BoxFit.contain,
+                    ),
             ),
           ),
-          
+
           // Recents Bar
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -246,20 +278,30 @@ class _CustomGalleryPickerScreenState extends State<CustomGalleryPickerScreen> {
                       _fetchMedia();
                     },
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.blue.withOpacity(0.2),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: const Text(
                         'Manage Access',
-                        style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold, fontSize: 12),
+                        style: TextStyle(
+                          color: Colors.blue,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
                       ),
                     ),
                   )
                 else
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.white24,
                       borderRadius: BorderRadius.circular(20),
@@ -268,7 +310,13 @@ class _CustomGalleryPickerScreenState extends State<CustomGalleryPickerScreen> {
                       children: [
                         Icon(Icons.filter_none, color: Colors.white, size: 16),
                         SizedBox(width: 4),
-                        Text('Select', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                        Text(
+                          'Select',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -281,7 +329,9 @@ class _CustomGalleryPickerScreenState extends State<CustomGalleryPickerScreen> {
             flex: 5,
             child: NotificationListener<ScrollNotification>(
               onNotification: (ScrollNotification scrollInfo) {
-                if (!_isLoading && scrollInfo.metrics.pixels == scrollInfo.metrics.maxScrollExtent) {
+                if (!_isLoading &&
+                    scrollInfo.metrics.pixels ==
+                        scrollInfo.metrics.maxScrollExtent) {
                   _fetchMedia();
                 }
                 return false;
@@ -299,7 +349,11 @@ class _CustomGalleryPickerScreenState extends State<CustomGalleryPickerScreen> {
                       onTap: _takeCameraMedia,
                       child: Container(
                         color: Colors.grey[850],
-                        child: const Icon(Icons.camera_alt, color: Colors.white, size: 30),
+                        child: const Icon(
+                          Icons.camera_alt,
+                          color: Colors.white,
+                          size: 30,
+                        ),
                       ),
                     );
                   }
@@ -324,12 +378,14 @@ class _CustomGalleryPickerScreenState extends State<CustomGalleryPickerScreen> {
                           const Positioned(
                             bottom: 4,
                             right: 4,
-                            child: Icon(Icons.play_circle_outline, color: Colors.white, size: 20),
+                            child: Icon(
+                              Icons.play_circle_outline,
+                              color: Colors.white,
+                              size: 20,
+                            ),
                           ),
                         if (isSelected)
-                          Container(
-                            color: Colors.white.withOpacity(0.4),
-                          ),
+                          Container(color: Colors.white.withOpacity(0.4)),
                       ],
                     ),
                   );

@@ -31,14 +31,10 @@ void main() async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-  
+
   // Request permissions
   final messaging = FirebaseMessaging.instance;
-  await messaging.requestPermission(
-    alert: true,
-    badge: true,
-    sound: true,
-  );
+  await messaging.requestPermission(alert: true, badge: true, sound: true);
 
   runApp(const ProviderScope(child: MyApp()));
 }
@@ -186,7 +182,8 @@ class HomeScreen extends ConsumerWidget {
                             receiverId: user.uid,
                             receiverName: user.displayName,
                             receiverToken: user.fcmToken ?? '',
-                            isAudioCall: false, // Explicitly set to false for video button
+                            isAudioCall:
+                                false, // Explicitly set to false for video button
                           );
 
                       if (newChannelId != null && context.mounted) {
@@ -196,7 +193,8 @@ class HomeScreen extends ConsumerWidget {
                             builder: (_) => CallScreen(
                               channelId: newChannelId,
                               guestUser: user,
-                              isAudioCall: false, // Explicitly set to false for video call
+                              isAudioCall:
+                                  false, // Explicitly set to false for video call
                             ),
                           ),
                         );

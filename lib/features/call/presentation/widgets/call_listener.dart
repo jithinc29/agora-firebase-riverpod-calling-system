@@ -118,12 +118,13 @@ class _CallListenerState extends ConsumerState<CallListener> {
       final type = data['t'] ?? data['type'];
       final status = data['s'] ?? data['status'] ?? 'dialing';
       final channelId = data['cid'] ?? data['channelId'] ?? '';
-      
+
       if (type == 'call' || status == 'dialing') {
         if (channelId.isEmpty) return;
 
         // 1. FRESHNESS CHECK
-        final createdAt = int.tryParse(message.data['createdAt']?.toString() ?? '') ?? 0;
+        final createdAt =
+            int.tryParse(message.data['createdAt']?.toString() ?? '') ?? 0;
         final now = DateTime.now().millisecondsSinceEpoch;
         if (createdAt > 0 && (now - createdAt > 60000)) return;
 
@@ -133,7 +134,7 @@ class _CallListenerState extends ConsumerState<CallListener> {
               .collection('calls')
               .doc(channelId)
               .get(const GetOptions(source: Source.server));
-          
+
           if (!callDoc.exists) {
             debugPrint('[FCM-LOG] Call doc $channelId missing. Ignoring.');
             return;
@@ -141,7 +142,9 @@ class _CallListenerState extends ConsumerState<CallListener> {
 
           final status = callDoc.data()?['status'];
           if (status != 'dialing') {
-            debugPrint('[FCM-LOG] Call $channelId is $status. Ignoring foreground signal.');
+            debugPrint(
+              '[FCM-LOG] Call $channelId is $status. Ignoring foreground signal.',
+            );
             return;
           }
         } catch (e) {
@@ -153,10 +156,7 @@ class _CallListenerState extends ConsumerState<CallListener> {
         if (globalActiveCallId == channelId) return;
         if (!_shouldHandle(channelId, createdAt)) return;
 
-        final callerName =
-            data['cn'] ??
-            data['callerName'] ??
-            'Unknown';
+        final callerName = data['cn'] ?? data['callerName'] ?? 'Unknown';
 
         // Only show if no other call is active
         final activeCalls = await FlutterCallkitIncoming.activeCalls();
@@ -204,9 +204,11 @@ class _CallListenerState extends ConsumerState<CallListener> {
             // 2. DISMISSAL: If this call is no longer dialing, dismiss CallKit
             if (status != 'dialing') {
               if (_handledCalls.containsKey(channelId)) {
-                debugPrint('[STREAM-LOG] Call $channelId status changed to $status. Dismissing.');
+                debugPrint(
+                  '[STREAM-LOG] Call $channelId status changed to $status. Dismissing.',
+                );
                 await FlutterCallkitIncoming.endAllCalls();
-                
+
                 // Remove from handled calls after a delay to prevent immediate re-trigger
                 Future.delayed(const Duration(seconds: 30), () {
                   _handledCalls.remove(channelId);
@@ -217,7 +219,8 @@ class _CallListenerState extends ConsumerState<CallListener> {
 
             // 3. DIALING: New incoming call
             if (status == 'dialing') {
-              if (data['senderId'] == user.uid || globalActiveCallId == channelId) {
+              if (data['senderId'] == user.uid ||
+                  globalActiveCallId == channelId) {
                 continue;
               }
 
@@ -229,7 +232,8 @@ class _CallListenerState extends ConsumerState<CallListener> {
               final activeCalls = await FlutterCallkitIncoming.activeCalls();
               if (activeCalls is List && activeCalls.isEmpty) {
                 CallKitService.showIncomingCall(
-                  callerName: data['callerName'] ?? data['senderName'] ?? 'Unknown',
+                  callerName:
+                      data['callerName'] ?? data['senderName'] ?? 'Unknown',
                   callerId: data['callerId'] ?? data['senderId'] ?? '',
                   channelId: channelId,
                   isAudioCall: data['isAudioCall'] == true,

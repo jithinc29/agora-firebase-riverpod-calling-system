@@ -3,7 +3,6 @@ import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:call_project/core/providers/firebase_providers.dart';
 import 'package:call_project/features/call/domain/entities/call_entity.dart';
@@ -17,9 +16,8 @@ part 'call_repository.g.dart';
 class CallRepository {
   final FirebaseFirestore _firestore;
 
-  CallRepository({
-    required FirebaseFirestore firestore,
-  })  : _firestore = firestore;
+  CallRepository({required FirebaseFirestore firestore})
+    : _firestore = firestore;
 
   Stream<QuerySnapshot> incomingCallStream(String receiverId) {
     return _firestore
@@ -34,11 +32,13 @@ class CallRepository {
 
   Future<String?> getAgoraToken(String channelName, int uid) async {
     try {
-      final response = await http.get(
-        Uri.parse(
-          '${AgoraConfig.tokenBaseUrl}/api/token?channelName=$channelName&uid=$uid&role=publisher',
-        ),
-      ).timeout(const Duration(seconds: 5));
+      final response = await http
+          .get(
+            Uri.parse(
+              '${AgoraConfig.tokenBaseUrl}/api/token?channelName=$channelName&uid=$uid&role=publisher',
+            ),
+          )
+          .timeout(const Duration(seconds: 5));
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -56,18 +56,24 @@ class CallRepository {
   Future<void> makeCall(CallEntity call) async {
     try {
       debugPrint('Initiating call signaling for channel: ${call.channelId}');
-      
+
       // 1 & 2 & 3. Run Firestore write and Vercel signaling in PARALLEL
       // This significantly reduces the delay for the receiver to get the signal.
-      final Future<void> firestoreFuture = _firestore.collection('calls').doc(call.channelId).set({
-        ...call.toMap(),
-        'status': 'dialing',
-        'createdAt': DateTime.now().millisecondsSinceEpoch,
-      });
+      final Future<void> firestoreFuture = _firestore
+          .collection('calls')
+          .doc(call.channelId)
+          .set({
+            ...call.toMap(),
+            'status': 'dialing',
+            'createdAt': DateTime.now().millisecondsSinceEpoch,
+          });
 
       // 2. Fetch the receiver's FCM token (Need this for Vercel)
       // We do this first as it's a prerequisite for Vercel
-      final receiverDoc = await _firestore.collection('users').doc(call.receiverId).get();
+      final receiverDoc = await _firestore
+          .collection('users')
+          .doc(call.receiverId)
+          .get();
       final receiverToken = receiverDoc.data()?['fcmToken'];
 
       final payload = {
@@ -81,18 +87,19 @@ class CallRepository {
         'receiverToken': receiverToken,
       };
 
-      final Future<void> vercelFuture = http.post(
-        Uri.parse('${AgoraConfig.tokenBaseUrl}/api/initiate_call'),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode(payload),
-      ).timeout(const Duration(seconds: 15)).then((response) {
-      }).catchError((e) {
-      });
+      final Future<void> vercelFuture = http
+          .post(
+            Uri.parse('${AgoraConfig.tokenBaseUrl}/api/initiate_call'),
+            headers: {'Content-Type': 'application/json'},
+            body: json.encode(payload),
+          )
+          .timeout(const Duration(seconds: 15))
+          .then((response) {})
+          .catchError((e) {});
 
       // Wait for both to complete
       await Future.wait([firestoreFuture, vercelFuture]);
       debugPrint('Call initiation signaling completed (Parallel).');
-
     } catch (e) {
       debugPrint('Error during makeCall signaling: $e');
     }
@@ -105,9 +112,14 @@ class CallRepository {
   Future<void> updateCallStatus(String channelId, String status) async {
     try {
       // 0. Check current status to prevent loops
-      final currentDoc = await _firestore.collection('calls').doc(channelId).get();
+      final currentDoc = await _firestore
+          .collection('calls')
+          .doc(channelId)
+          .get();
       if (currentDoc.exists && currentDoc.data()?['status'] == status) {
-        debugPrint('Call $channelId status is already $status. Skipping update.');
+        debugPrint(
+          'Call $channelId status is already $status. Skipping update.',
+        );
         return;
       }
 
@@ -119,36 +131,44 @@ class CallRepository {
 
       // 2. SIGNAL VERCEL (Critical for dismissing KILLED/BACKGROUND apps)
       // Only signal if the call is being terminated
-      if (status == 'ended' || status == 'cancelled' || status == 'declined' || status == 'timed_out') {
-        final callDoc = await _firestore.collection('calls').doc(channelId).get();
+      if (status == 'ended' ||
+          status == 'cancelled' ||
+          status == 'declined' ||
+          status == 'timed_out') {
+        final callDoc = await _firestore
+            .collection('calls')
+            .doc(channelId)
+            .get();
         if (!callDoc.exists) return;
 
         final callData = callDoc.data() as Map<String, dynamic>;
-        
-        // --- Added Missed Call Notification Logic ---
-        if (status == 'timed_out' || status == 'declined' || status == 'cancelled') {
-           final receiverId = callData['receiverId'];
-           final callerId = callData['callerId'];
-           final callerName = callData['callerName'];
-           
-           // If I was the receiver and I missed it
-           final notification = NotificationModel(
-             id: const Uuid().v4(),
-             receiverId: receiverId,
-             senderId: callerId,
-             senderName: callerName,
-             title: 'Missed Call',
-             body: 'You missed a call from $callerName',
-             type: NotificationType.missedCall,
-             timestamp: DateTime.now(),
-           );
 
-           await _firestore
-               .collection('users')
-               .doc(receiverId)
-               .collection('notifications')
-               .doc(notification.id)
-               .set(notification.toMap());
+        // --- Added Missed Call Notification Logic ---
+        if (status == 'timed_out' ||
+            status == 'declined' ||
+            status == 'cancelled') {
+          final receiverId = callData['receiverId'];
+          final callerId = callData['callerId'];
+          final callerName = callData['callerName'];
+
+          // If I was the receiver and I missed it
+          final notification = NotificationModel(
+            id: const Uuid().v4(),
+            receiverId: receiverId,
+            senderId: callerId,
+            senderName: callerName,
+            title: 'Missed Call',
+            body: 'You missed a call from $callerName',
+            type: NotificationType.missedCall,
+            timestamp: DateTime.now(),
+          );
+
+          await _firestore
+              .collection('users')
+              .doc(receiverId)
+              .collection('notifications')
+              .doc(notification.id)
+              .set(notification.toMap());
         }
         // ---------------------------------------------
 
@@ -163,9 +183,12 @@ class CallRepository {
         });
 
         final receiverId = callData['receiverId'];
-        
+
         // Fetch the receiver's token
-        final receiverDoc = await _firestore.collection('users').doc(receiverId).get();
+        final receiverDoc = await _firestore
+            .collection('users')
+            .doc(receiverId)
+            .get();
         final receiverData = receiverDoc.data();
         final receiverToken = receiverData?['fcmToken'];
 
@@ -176,15 +199,18 @@ class CallRepository {
             't': 'call',
             'receiverToken': receiverToken,
           };
-          
-          http.post(
-            Uri.parse('${AgoraConfig.tokenBaseUrl}/api/initiate_call'),
-            headers: {'Content-Type': 'application/json'},
-            body: json.encode(payload),
-          ).timeout(const Duration(seconds: 10)).catchError((e) {
-            debugPrint('Vercel post failed: $e');
-            return http.Response('err', 500);
-          });
+
+          http
+              .post(
+                Uri.parse('${AgoraConfig.tokenBaseUrl}/api/initiate_call'),
+                headers: {'Content-Type': 'application/json'},
+                body: json.encode(payload),
+              )
+              .timeout(const Duration(seconds: 10))
+              .catchError((e) {
+                debugPrint('Vercel post failed: $e');
+                return http.Response('err', 500);
+              });
         }
       }
     } catch (e) {
@@ -192,12 +218,15 @@ class CallRepository {
     }
   }
 
-  Future<void> updateCallData(String channelId, Map<String, dynamic> data) async {
+  Future<void> updateCallData(
+    String channelId,
+    Map<String, dynamic> data,
+  ) async {
     try {
-      await _firestore.collection('calls').doc(channelId).set(
-            data,
-            SetOptions(merge: true),
-          );
+      await _firestore
+          .collection('calls')
+          .doc(channelId)
+          .set(data, SetOptions(merge: true));
     } catch (e) {
       debugPrint('Error in updateCallData: $e');
     }
@@ -206,9 +235,7 @@ class CallRepository {
 
 @riverpod
 CallRepository callRepository(Ref ref) {
-  return CallRepository(
-    firestore: ref.watch(firestoreProvider),
-  );
+  return CallRepository(firestore: ref.watch(firestoreProvider));
 }
 
 @riverpod

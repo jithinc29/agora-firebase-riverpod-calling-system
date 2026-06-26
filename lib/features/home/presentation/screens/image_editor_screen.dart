@@ -66,7 +66,9 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
         },
       ),
       configs: ProImageEditorConfigs(
-        designMode: Platform.isIOS ? ImageEditorDesignMode.cupertino : ImageEditorDesignMode.material,
+        designMode: Platform.isIOS
+            ? ImageEditorDesignMode.cupertino
+            : ImageEditorDesignMode.material,
         cropRotateEditor: const CropRotateEditorConfigs(),
         filterEditor: const FilterEditorConfigs(),
         blurEditor: const BlurEditorConfigs(),
@@ -118,11 +120,7 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
                     onTap: () {
                       setLayer(
                         WidgetLayer(
-                          widget: Icon(
-                            icon,
-                            color: Colors.amber,
-                            size: 64,
-                          ),
+                          widget: Icon(icon, color: Colors.amber, size: 64),
                         ),
                       );
                     },
@@ -137,7 +135,6 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
     );
   }
 
-
   void _showProgressDialog(BuildContext context, String message) {
     showDialog(
       context: context,
@@ -145,7 +142,9 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
       builder: (dialogContext) => PopScope(
         canPop: false,
         child: AlertDialog(
-          shape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(20))),
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.all(Radius.circular(20)),
+          ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -168,11 +167,16 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
     _showProgressDialog(context, 'Sharing your story...');
     try {
       final tempDir = Directory.systemTemp;
-      final file = File('${tempDir.path}/temp_story_${DateTime.now().millisecondsSinceEpoch}.png');
+      final file = File(
+        '${tempDir.path}/temp_story_${DateTime.now().millisecondsSinceEpoch}.png',
+      );
       await file.writeAsBytes(bytes);
 
-      final String fileName = '${DateTime.now().millisecondsSinceEpoch}_story.png';
-      final refStorage = FirebaseStorage.instance.ref().child('stories_image/$fileName');
+      final String fileName =
+          '${DateTime.now().millisecondsSinceEpoch}_story.png';
+      final refStorage = FirebaseStorage.instance.ref().child(
+        'stories_image/$fileName',
+      );
       await refStorage.putFile(file);
       final mediaUrl = await refStorage.getDownloadURL();
 
@@ -191,7 +195,10 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
         // Pop loading progress dialog
         Navigator.of(context, rootNavigator: true).pop();
         _shouldPreventClose = false;
-        TopNotificationService.showSuccess(context, 'Story shared successfully!');
+        TopNotificationService.showSuccess(
+          context,
+          'Story shared successfully!',
+        );
         widget.onSuccess?.call();
       }
     } catch (e) {
@@ -201,7 +208,8 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
         TopNotificationService.showError(context, 'Failed to share story: $e');
       }
     }
-  }}
+  }
+}
 
 class PostPublishScreen extends StatefulWidget {
   final Uint8List bytes;
@@ -242,7 +250,9 @@ class _PostPublishScreenState extends State<PostPublishScreen> {
       builder: (dialogContext) => PopScope(
         canPop: false,
         child: AlertDialog(
-          shape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(20))),
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.all(Radius.circular(20)),
+          ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -266,11 +276,16 @@ class _PostPublishScreenState extends State<PostPublishScreen> {
     _showProgressDialog(context, 'Publishing your post...');
     try {
       final tempDir = Directory.systemTemp;
-      final file = File('${tempDir.path}/temp_post_${DateTime.now().millisecondsSinceEpoch}.png');
+      final file = File(
+        '${tempDir.path}/temp_post_${DateTime.now().millisecondsSinceEpoch}.png',
+      );
       await file.writeAsBytes(widget.bytes);
 
-      final String fileName = '${DateTime.now().millisecondsSinceEpoch}_post.png';
-      final refStorage = FirebaseStorage.instance.ref().child('posts_image/$fileName');
+      final String fileName =
+          '${DateTime.now().millisecondsSinceEpoch}_post.png';
+      final refStorage = FirebaseStorage.instance.ref().child(
+        'posts_image/$fileName',
+      );
       await refStorage.putFile(file);
       final mediaUrl = await refStorage.getDownloadURL();
 
@@ -289,7 +304,10 @@ class _PostPublishScreenState extends State<PostPublishScreen> {
       if (mounted) {
         // Pop loading progress dialog
         Navigator.of(context, rootNavigator: true).pop();
-        TopNotificationService.showSuccess(context, 'Post shared successfully!');
+        TopNotificationService.showSuccess(
+          context,
+          'Post shared successfully!',
+        );
         Navigator.pop(context, true); // Return true to pop the editor
       }
     } catch (e) {
@@ -347,11 +365,13 @@ class _PostPublishScreenState extends State<PostPublishScreen> {
                         CircleAvatar(
                           radius: 20,
                           backgroundColor: Colors.grey.shade200,
-                          backgroundImage: widget.currentUser.photoUrl != null &&
+                          backgroundImage:
+                              widget.currentUser.photoUrl != null &&
                                   widget.currentUser.photoUrl!.isNotEmpty
                               ? NetworkImage(widget.currentUser.photoUrl!)
                               : null,
-                          child: widget.currentUser.photoUrl == null ||
+                          child:
+                              widget.currentUser.photoUrl == null ||
                                   widget.currentUser.photoUrl!.isEmpty
                               ? const Icon(Icons.person, color: Colors.grey)
                               : null,
@@ -383,7 +403,10 @@ class _PostPublishScreenState extends State<PostPublishScreen> {
                       children: [
                         const Text(
                           'Character Count',
-                          style: TextStyle(color: Color(0xFF64748B), fontSize: 13),
+                          style: TextStyle(
+                            color: Color(0xFF64748B),
+                            fontSize: 13,
+                          ),
                         ),
                         AnimatedBuilder(
                           animation: _captionController,
@@ -421,10 +444,7 @@ class _PostPublishScreenState extends State<PostPublishScreen> {
                   borderRadius: BorderRadius.circular(20),
                   child: AspectRatio(
                     aspectRatio: 1, // Keep it square
-                    child: Image.memory(
-                      widget.bytes,
-                      fit: BoxFit.cover,
-                    ),
+                    child: Image.memory(widget.bytes, fit: BoxFit.cover),
                   ),
                 ),
               ),

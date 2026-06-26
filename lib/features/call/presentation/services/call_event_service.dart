@@ -15,7 +15,9 @@ class CallEventService {
 
   Future<void> handleEvent(dynamic event) async {
     final body = Map<String, dynamic>.from(event.body as Map);
-    final extra = body['extra'] != null ? Map<String, dynamic>.from(body['extra'] as Map) : null;
+    final extra = body['extra'] != null
+        ? Map<String, dynamic>.from(body['extra'] as Map)
+        : null;
     final channelId = extra?['channelId'] ?? body['id'] ?? '';
     if (channelId.isEmpty) return;
 
@@ -26,14 +28,14 @@ class CallEventService {
       case Event.actionCallAccept:
         debugPrint('[EVENT-SERVICE] Accept captured: $channelId');
         callState.setActiveCall(channelId);
-        
+
         final guestUser = UserModel(
           uid: extra?['callerId'] ?? '',
           email: '',
           displayName: body['nameCaller'] ?? 'Unknown',
           isOnline: true,
         );
-        
+
         // Wait for navigator
         for (int i = 0; i < 20; i++) {
           if (navigatorKey.currentState != null) break;
@@ -41,24 +43,26 @@ class CallEventService {
         }
 
         if (navigatorKey.currentState != null) {
-          navigatorKey.currentState!.push(
-            MaterialPageRoute(
-              settings: const RouteSettings(name: '/call_screen'),
-              builder: (_) => CallScreen(
-                channelId: channelId,
-                guestUser: guestUser,
-                isAudioCall: body['type']?.toString() == '0',
-                isOutgoing: false,
-              ),
-            ),
-          ).then((_) => callState.clearActiveCall());
+          navigatorKey.currentState!
+              .push(
+                MaterialPageRoute(
+                  settings: const RouteSettings(name: '/call_screen'),
+                  builder: (_) => CallScreen(
+                    channelId: channelId,
+                    guestUser: guestUser,
+                    isAudioCall: body['type']?.toString() == '0',
+                    isOutgoing: false,
+                  ),
+                ),
+              )
+              .then((_) => callState.clearActiveCall());
         }
         break;
-        
+
       case Event.actionCallDecline:
         debugPrint('[EVENT-SERVICE] Decline captured: $channelId');
         callState.clearActiveCall();
-        
+
         await _ensureAuth();
         if (FirebaseAuth.instance.currentUser != null) {
           await repository.updateCallStatus(channelId, 'declined');
@@ -68,7 +72,7 @@ class CallEventService {
       case Event.actionCallTimeout:
         debugPrint('[EVENT-SERVICE] Timeout captured: $channelId');
         callState.clearActiveCall();
-        
+
         await _ensureAuth();
         if (FirebaseAuth.instance.currentUser != null) {
           await repository.updateCallStatus(channelId, 'timed_out');
@@ -79,7 +83,7 @@ class CallEventService {
         debugPrint('[EVENT-SERVICE] Ended captured: $channelId');
         callState.clearActiveCall();
         break;
-        
+
       default:
         break;
     }

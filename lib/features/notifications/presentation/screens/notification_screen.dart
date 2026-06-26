@@ -12,10 +12,12 @@ class NotificationScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(firebaseAuthProvider).currentUser;
-    if (user == null) return const Scaffold(body: Center(child: Text('Please login')));
+    if (user == null)
+      return const Scaffold(body: Center(child: Text('Please login')));
 
     final notificationsAsync = ref.watch(notificationsProvider(user.uid));
-    final unreadCount = ref.watch(unreadNotificationsCountProvider(user.uid)).value ?? 0;
+    final unreadCount =
+        ref.watch(unreadNotificationsCountProvider(user.uid)).value ?? 0;
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC), // Modern slate background
       appBar: AppBar(
@@ -61,8 +63,13 @@ class NotificationScreen extends ConsumerWidget {
             Padding(
               padding: const EdgeInsets.only(right: 8.0),
               child: IconButton(
-                onPressed: () => ref.read(notificationRepositoryProvider).markAllAsRead(user.uid),
-                icon: const Icon(Icons.done_all_rounded, color: Color(0xFF6366F1)),
+                onPressed: () => ref
+                    .read(notificationRepositoryProvider)
+                    .markAllAsRead(user.uid),
+                icon: const Icon(
+                  Icons.done_all_rounded,
+                  color: Color(0xFF6366F1),
+                ),
                 tooltip: 'Mark all as read',
               ),
             ),
@@ -105,10 +112,7 @@ class NotificationScreen extends ConsumerWidget {
                   const SizedBox(height: 6),
                   Text(
                     'No new notifications at the moment.',
-                    style: TextStyle(
-                      color: Colors.grey.shade500,
-                      fontSize: 14,
-                    ),
+                    style: TextStyle(color: Colors.grey.shade500, fontSize: 14),
                   ),
                 ],
               ),
@@ -120,7 +124,12 @@ class NotificationScreen extends ConsumerWidget {
             itemCount: list.length,
             itemBuilder: (context, index) {
               final notification = list[index];
-              return _buildNotificationCard(context, ref, user.uid, notification);
+              return _buildNotificationCard(
+                context,
+                ref,
+                user.uid,
+                notification,
+              );
             },
           );
         },
@@ -130,7 +139,12 @@ class NotificationScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildNotificationCard(BuildContext context, WidgetRef ref, String uid, NotificationModel notification) {
+  Widget _buildNotificationCard(
+    BuildContext context,
+    WidgetRef ref,
+    String uid,
+    NotificationModel notification,
+  ) {
     final isUnread = !notification.isRead;
     final typeColor = _getTypeColor(notification.type);
     final typeIcon = _getTypeIcon(notification.type);
@@ -163,7 +177,9 @@ class NotificationScreen extends ConsumerWidget {
                 child: InkWell(
                   onTap: () {
                     if (isUnread) {
-                      ref.read(notificationRepositoryProvider).markAsRead(uid, notification.id);
+                      ref
+                          .read(notificationRepositoryProvider)
+                          .markAsRead(uid, notification.id);
                     }
                   },
                   borderRadius: BorderRadius.circular(16),
@@ -187,10 +203,18 @@ class NotificationScreen extends ConsumerWidget {
                                     ? CachedNetworkImage(
                                         imageUrl: notification.senderPhotoUrl!,
                                         fit: BoxFit.cover,
-                                        placeholder: (context, url) => const Center(
-                                          child: CircularProgressIndicator(strokeWidth: 2),
-                                        ),
-                                        errorWidget: (context, url, error) => Icon(typeIcon, color: typeColor, size: 22),
+                                        placeholder: (context, url) =>
+                                            const Center(
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 2,
+                                              ),
+                                            ),
+                                        errorWidget: (context, url, error) =>
+                                            Icon(
+                                              typeIcon,
+                                              color: typeColor,
+                                              size: 22,
+                                            ),
                                       )
                                     : Center(
                                         child: Icon(
@@ -211,7 +235,10 @@ class NotificationScreen extends ConsumerWidget {
                                   decoration: BoxDecoration(
                                     color: typeColor,
                                     shape: BoxShape.circle,
-                                    border: Border.all(color: Colors.white, width: 1.5),
+                                    border: Border.all(
+                                      color: Colors.white,
+                                      width: 1.5,
+                                    ),
                                   ),
                                 ),
                               ),
@@ -226,7 +253,9 @@ class NotificationScreen extends ConsumerWidget {
                               Text(
                                 notification.title,
                                 style: TextStyle(
-                                  fontWeight: isUnread ? FontWeight.bold : FontWeight.w600,
+                                  fontWeight: isUnread
+                                      ? FontWeight.bold
+                                      : FontWeight.w600,
                                   fontSize: 15,
                                   color: const Color(0xFF0F172A),
                                 ),
@@ -280,7 +309,11 @@ class NotificationScreen extends ConsumerWidget {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final yesterday = today.subtract(const Duration(days: 1));
-    final dateToCheck = DateTime(timestamp.year, timestamp.month, timestamp.day);
+    final dateToCheck = DateTime(
+      timestamp.year,
+      timestamp.month,
+      timestamp.day,
+    );
 
     final timeStr = DateFormat('hh:mm a').format(timestamp);
 
@@ -297,17 +330,23 @@ class NotificationScreen extends ConsumerWidget {
 
   IconData _getTypeIcon(NotificationType type) {
     switch (type) {
-      case NotificationType.followRequest: return Icons.person_add_rounded;
-      case NotificationType.missedCall: return Icons.phone_missed_rounded;
-      case NotificationType.message: return Icons.chat_bubble_rounded;
+      case NotificationType.followRequest:
+        return Icons.person_add_rounded;
+      case NotificationType.missedCall:
+        return Icons.phone_missed_rounded;
+      case NotificationType.message:
+        return Icons.chat_bubble_rounded;
     }
   }
 
   Color _getTypeColor(NotificationType type) {
     switch (type) {
-      case NotificationType.followRequest: return const Color(0xFF3B82F6); // Modern Blue
-      case NotificationType.missedCall: return const Color(0xFFEF4444); // Modern Red
-      case NotificationType.message: return const Color(0xFF8B5CF6); // Modern Purple
+      case NotificationType.followRequest:
+        return const Color(0xFF3B82F6); // Modern Blue
+      case NotificationType.missedCall:
+        return const Color(0xFFEF4444); // Modern Red
+      case NotificationType.message:
+        return const Color(0xFF8B5CF6); // Modern Purple
     }
   }
 }

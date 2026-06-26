@@ -3,11 +3,16 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:call_project/features/auth/models/user_model.dart';
 import 'package:call_project/core/utils/time_utils.dart';
-import 'package:call_project/features/home/presentation/screens/home_screen.dart' show AppColors;
+import 'package:call_project/features/home/presentation/screens/home_screen.dart'
+    show AppColors;
 import 'package:cached_network_image/cached_network_image.dart';
 
 class CommentsBottomSheetHelper {
-  static void show(BuildContext context, DocumentSnapshot postDoc, UserModel currentUser) {
+  static void show(
+    BuildContext context,
+    DocumentSnapshot postDoc,
+    UserModel currentUser,
+  ) {
     final textController = TextEditingController();
     final focusNode = FocusNode();
     String? replyToCommentId;
@@ -26,7 +31,6 @@ class CommentsBottomSheetHelper {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) {
-
         return StatefulBuilder(
           builder: (context, setState) {
             return Container(
@@ -60,10 +64,15 @@ class CommentsBottomSheetHelper {
                       stream: commentsStream,
                       builder: (context, snapshot) {
                         if (snapshot.hasError) {
-                          return Center(child: Text('Error: ${snapshot.error}'));
+                          return Center(
+                            child: Text('Error: ${snapshot.error}'),
+                          );
                         }
-                        if (snapshot.connectionState == ConnectionState.waiting) {
-                          return const Center(child: CircularProgressIndicator());
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return const Center(
+                            child: CircularProgressIndicator(),
+                          );
                         }
 
                         final commentDocs = snapshot.data?.docs ?? [];
@@ -71,7 +80,10 @@ class CommentsBottomSheetHelper {
                           return const Center(
                             child: Text(
                               'No comments yet. Start the conversation!',
-                              style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                              style: TextStyle(
+                                color: AppColors.textSecondary,
+                                fontSize: 13,
+                              ),
                             ),
                           );
                         }
@@ -88,20 +100,27 @@ class CommentsBottomSheetHelper {
                               (data['parentId'] as String).isNotEmpty;
                         }).toList();
 
-                        final Map<String, List<DocumentSnapshot>> repliesByParent = {};
+                        final Map<String, List<DocumentSnapshot>>
+                        repliesByParent = {};
                         for (var reply in replies) {
                           final data = reply.data() as Map<String, dynamic>;
                           final parentId = data['parentId'] as String;
-                          repliesByParent.putIfAbsent(parentId, () => []).add(reply);
+                          repliesByParent
+                              .putIfAbsent(parentId, () => [])
+                              .add(reply);
                         }
 
                         final currentUserUid = currentUser.uid;
-                        final postAuthorUid = (postDoc.data() as Map<String, dynamic>?)?['uid'] as String?;
+                        final postAuthorUid =
+                            (postDoc.data() as Map<String, dynamic>?)?['uid']
+                                as String?;
 
                         final List<Widget> listItems = [];
                         for (var parent in parentComments) {
-                          final parentData = parent.data() as Map<String, dynamic>? ?? {};
-                          final parentLikes = parentData['likes'] as List<dynamic>? ?? [];
+                          final parentData =
+                              parent.data() as Map<String, dynamic>? ?? {};
+                          final parentLikes =
+                              parentData['likes'] as List<dynamic>? ?? [];
                           listItems.add(
                             buildCommentItem(
                               commentDoc: parent,
@@ -109,34 +128,50 @@ class CommentsBottomSheetHelper {
                               isLiked: parentLikes.contains(currentUserUid),
                               likeCount: parentLikes.length,
                               onLikeTap: () {
-                                final updatedLikes = List<String>.from(parentLikes.map((e) => e.toString()));
+                                final updatedLikes = List<String>.from(
+                                  parentLikes.map((e) => e.toString()),
+                                );
                                 if (updatedLikes.contains(currentUserUid)) {
                                   updatedLikes.remove(currentUserUid);
                                 } else {
                                   updatedLikes.add(currentUserUid);
                                 }
-                                parent.reference.update({'likes': updatedLikes});
+                                parent.reference.update({
+                                  'likes': updatedLikes,
+                                });
                               },
-                              onLongPress: () => showCommentOptions(context, parent, currentUserUid, postAuthorUid),
+                              onLongPress: () => showCommentOptions(
+                                context,
+                                parent,
+                                currentUserUid,
+                                postAuthorUid,
+                              ),
                               onReplyTap: () {
-                                final name = parentData['displayName'] ?? 'Anonymous';
+                                final name =
+                                    parentData['displayName'] ?? 'Anonymous';
                                 setState(() {
                                   replyToCommentId = parent.id;
                                   replyToUsername = name;
                                   textController.text = '@$name ';
-                                  textController.selection = TextSelection.fromPosition(
-                                    TextPosition(offset: textController.text.length),
-                                  );
+                                  textController.selection =
+                                      TextSelection.fromPosition(
+                                        TextPosition(
+                                          offset: textController.text.length,
+                                        ),
+                                      );
                                 });
                                 focusNode.requestFocus();
                               },
                             ),
                           );
 
-                          final parentReplies = repliesByParent[parent.id] ?? [];
+                          final parentReplies =
+                              repliesByParent[parent.id] ?? [];
                           for (var reply in parentReplies) {
-                            final replyData = reply.data() as Map<String, dynamic>? ?? {};
-                            final replyLikes = replyData['likes'] as List<dynamic>? ?? [];
+                            final replyData =
+                                reply.data() as Map<String, dynamic>? ?? {};
+                            final replyLikes =
+                                replyData['likes'] as List<dynamic>? ?? [];
                             listItems.add(
                               Padding(
                                 padding: const EdgeInsets.only(left: 36.0),
@@ -146,24 +181,38 @@ class CommentsBottomSheetHelper {
                                   isLiked: replyLikes.contains(currentUserUid),
                                   likeCount: replyLikes.length,
                                   onLikeTap: () {
-                                    final updatedLikes = List<String>.from(replyLikes.map((e) => e.toString()));
+                                    final updatedLikes = List<String>.from(
+                                      replyLikes.map((e) => e.toString()),
+                                    );
                                     if (updatedLikes.contains(currentUserUid)) {
                                       updatedLikes.remove(currentUserUid);
                                     } else {
                                       updatedLikes.add(currentUserUid);
                                     }
-                                    reply.reference.update({'likes': updatedLikes});
+                                    reply.reference.update({
+                                      'likes': updatedLikes,
+                                    });
                                   },
-                                  onLongPress: () => showCommentOptions(context, reply, currentUserUid, postAuthorUid),
+                                  onLongPress: () => showCommentOptions(
+                                    context,
+                                    reply,
+                                    currentUserUid,
+                                    postAuthorUid,
+                                  ),
                                   onReplyTap: () {
-                                    final name = replyData['displayName'] ?? 'Anonymous';
+                                    final name =
+                                        replyData['displayName'] ?? 'Anonymous';
                                     setState(() {
                                       replyToCommentId = parent.id;
                                       replyToUsername = name;
                                       textController.text = '@$name ';
-                                      textController.selection = TextSelection.fromPosition(
-                                        TextPosition(offset: textController.text.length),
-                                      );
+                                      textController.selection =
+                                          TextSelection.fromPosition(
+                                            TextPosition(
+                                              offset:
+                                                  textController.text.length,
+                                            ),
+                                          );
                                     });
                                     focusNode.requestFocus();
                                   },
@@ -185,7 +234,10 @@ class CommentsBottomSheetHelper {
                   if (replyToUsername != null)
                     Container(
                       color: Colors.grey[50],
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 6,
+                      ),
                       child: Row(
                         children: [
                           Text(
@@ -202,7 +254,9 @@ class CommentsBottomSheetHelper {
                                 replyToCommentId = null;
                                 replyToUsername = null;
                                 // Optional: clear the textfield if they cancel the reply and it was just the username
-                                if (textController.text.trim().startsWith('@')) {
+                                if (textController.text.trim().startsWith(
+                                  '@',
+                                )) {
                                   textController.clear();
                                 }
                               });
@@ -220,52 +274,70 @@ class CommentsBottomSheetHelper {
                     height: 40,
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      border: Border(bottom: BorderSide(color: Colors.grey[200]!)),
+                      border: Border(
+                        bottom: BorderSide(color: Colors.grey[200]!),
+                      ),
                     ),
                     child: ListView(
                       scrollDirection: Axis.horizontal,
                       padding: const EdgeInsets.symmetric(horizontal: 8),
-                      children: ['❤️', '🔥', '😂', '👏', '😍', '😢', '🙌', '😮'].map((emoji) {
-                        return InkWell(
-                          onTap: () {
-                            final text = textController.text;
-                            final selection = textController.selection;
-                            String newText;
-                            if (selection.isValid) {
-                              newText = text.replaceRange(selection.start, selection.end, emoji);
-                            } else {
-                              newText = text + emoji;
-                            }
-                            textController.text = newText;
-                            textController.selection = TextSelection.fromPosition(
-                              TextPosition(offset: newText.length),
+                      children: ['❤️', '🔥', '😂', '👏', '😍', '😢', '🙌', '😮']
+                          .map((emoji) {
+                            return InkWell(
+                              onTap: () {
+                                final text = textController.text;
+                                final selection = textController.selection;
+                                String newText;
+                                if (selection.isValid) {
+                                  newText = text.replaceRange(
+                                    selection.start,
+                                    selection.end,
+                                    emoji,
+                                  );
+                                } else {
+                                  newText = text + emoji;
+                                }
+                                textController.text = newText;
+                                textController.selection =
+                                    TextSelection.fromPosition(
+                                      TextPosition(offset: newText.length),
+                                    );
+                              },
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 8,
+                                ),
+                                child: Text(
+                                  emoji,
+                                  style: const TextStyle(fontSize: 18),
+                                ),
+                              ),
                             );
-                          },
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                            child: Text(
-                              emoji,
-                              style: const TextStyle(fontSize: 18),
-                            ),
-                          ),
-                        );
-                      }).toList(),
+                          })
+                          .toList(),
                     ),
                   ),
                   SafeArea(
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
                       child: Row(
                         children: [
                           CircleAvatar(
                             radius: 14,
                             backgroundImage: currentUser.photoUrl != null
-                                ? CachedNetworkImageProvider(currentUser.photoUrl!)
+                                ? CachedNetworkImageProvider(
+                                    currentUser.photoUrl!,
+                                  )
                                 : null,
                             child: currentUser.photoUrl == null
                                 ? Text(
                                     currentUser.displayName.isNotEmpty
-                                        ? currentUser.displayName[0].toUpperCase()
+                                        ? currentUser.displayName[0]
+                                              .toUpperCase()
                                         : '?',
                                     style: const TextStyle(fontSize: 10),
                                   )
@@ -279,12 +351,20 @@ class CommentsBottomSheetHelper {
                               maxLines: null,
                               decoration: const InputDecoration(
                                 hintText: 'Add a comment...',
-                                hintStyle: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                                hintStyle: TextStyle(
+                                  color: AppColors.textSecondary,
+                                  fontSize: 13,
+                                ),
                                 border: InputBorder.none,
                                 isDense: true,
-                                contentPadding: EdgeInsets.symmetric(vertical: 8),
+                                contentPadding: EdgeInsets.symmetric(
+                                  vertical: 8,
+                                ),
                               ),
-                              style: const TextStyle(fontSize: 13, color: AppColors.textPrimary),
+                              style: const TextStyle(
+                                fontSize: 13,
+                                color: AppColors.textPrimary,
+                              ),
                             ),
                           ),
                           TextButton(
@@ -309,11 +389,15 @@ class CommentsBottomSheetHelper {
                               focusNode.unfocus();
 
                               try {
-                                await postDoc.reference.collection('comments').add(commentData);
+                                await postDoc.reference
+                                    .collection('comments')
+                                    .add(commentData);
                               } catch (e) {
                                 if (context.mounted) {
                                   TopNotificationService.showError(
-                                      context, 'Failed to add comment: $e');
+                                    context,
+                                    'Failed to add comment: $e',
+                                  );
                                 }
                               }
                             },
@@ -351,7 +435,9 @@ class CommentsBottomSheetHelper {
     final data = commentDoc.data() as Map<String, dynamic>? ?? {};
     final commentAuthorUid = data['uid'] as String?;
 
-    final canDelete = (currentUserUid == commentAuthorUid) || (currentUserUid == postAuthorUid);
+    final canDelete =
+        (currentUserUid == commentAuthorUid) ||
+        (currentUserUid == postAuthorUid);
 
     showModalBottomSheet(
       context: context,
@@ -375,8 +461,14 @@ class CommentsBottomSheetHelper {
               ),
               if (canDelete)
                 ListTile(
-                  leading: const Icon(Icons.delete_outline_rounded, color: Colors.red),
-                  title: const Text('Delete Comment', style: TextStyle(color: Colors.red)),
+                  leading: const Icon(
+                    Icons.delete_outline_rounded,
+                    color: Colors.red,
+                  ),
+                  title: const Text(
+                    'Delete Comment',
+                    style: TextStyle(color: Colors.red),
+                  ),
                   onTap: () {
                     commentDoc.reference.delete();
                     Navigator.pop(context);
@@ -384,11 +476,20 @@ class CommentsBottomSheetHelper {
                 ),
               if (!canDelete) ...[
                 ListTile(
-                  leading: const Icon(Icons.report_gmailerrorred_rounded, color: Colors.red),
-                  title: const Text('Report', style: TextStyle(color: Colors.red)),
+                  leading: const Icon(
+                    Icons.report_gmailerrorred_rounded,
+                    color: Colors.red,
+                  ),
+                  title: const Text(
+                    'Report',
+                    style: TextStyle(color: Colors.red),
+                  ),
                   onTap: () {
                     Navigator.pop(context);
-                    TopNotificationService.showSuccess(context, 'Comment reported');
+                    TopNotificationService.showSuccess(
+                      context,
+                      'Comment reported',
+                    );
                   },
                 ),
                 ListTile(
@@ -421,7 +522,9 @@ class CommentsBottomSheetHelper {
     final String? photoUrl = data['photoUrl'];
     final String text = data['text'] ?? '';
     final int timestampMillis = parseTimestamp(data['timestamp']);
-    final DateTime? timestampDate = timestampMillis > 0 ? DateTime.fromMillisecondsSinceEpoch(timestampMillis) : null;
+    final DateTime? timestampDate = timestampMillis > 0
+        ? DateTime.fromMillisecondsSinceEpoch(timestampMillis)
+        : null;
 
     String timeAgo = 'Just now';
     if (timestampDate != null) {
@@ -450,10 +553,14 @@ class CommentsBottomSheetHelper {
           children: [
             CircleAvatar(
               radius: isReply ? 12 : 14,
-              backgroundImage: photoUrl != null ? CachedNetworkImageProvider(photoUrl) : null,
+              backgroundImage: photoUrl != null
+                  ? CachedNetworkImageProvider(photoUrl)
+                  : null,
               child: photoUrl == null
                   ? Text(
-                      displayName.isNotEmpty ? displayName[0].toUpperCase() : '?',
+                      displayName.isNotEmpty
+                          ? displayName[0].toUpperCase()
+                          : '?',
                       style: TextStyle(fontSize: isReply ? 8 : 10),
                     )
                   : null,
@@ -465,7 +572,10 @@ class CommentsBottomSheetHelper {
                 children: [
                   RichText(
                     text: TextSpan(
-                      style: const TextStyle(color: AppColors.textPrimary, fontSize: 12),
+                      style: const TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 12,
+                      ),
                       children: [
                         TextSpan(
                           text: '$displayName ',
@@ -488,7 +598,10 @@ class CommentsBottomSheetHelper {
                     children: [
                       Text(
                         timeAgo,
-                        style: const TextStyle(color: AppColors.textSecondary, fontSize: 10),
+                        style: const TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 10,
+                        ),
                       ),
                       const SizedBox(width: 12),
                       GestureDetector(
@@ -513,7 +626,9 @@ class CommentsBottomSheetHelper {
                 GestureDetector(
                   onTap: onLikeTap,
                   child: Icon(
-                    isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                    isLiked
+                        ? Icons.favorite_rounded
+                        : Icons.favorite_border_rounded,
                     size: 14,
                     color: isLiked ? Colors.red : AppColors.textSecondary,
                   ),
@@ -522,9 +637,12 @@ class CommentsBottomSheetHelper {
                   const SizedBox(height: 2),
                   Text(
                     '$likeCount',
-                    style: const TextStyle(color: AppColors.textSecondary, fontSize: 10),
+                    style: const TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 10,
+                    ),
                   ),
-                ]
+                ],
               ],
             ),
           ],
@@ -532,5 +650,4 @@ class CommentsBottomSheetHelper {
       ),
     );
   }
-
 }

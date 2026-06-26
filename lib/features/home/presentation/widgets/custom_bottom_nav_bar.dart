@@ -99,9 +99,7 @@ class _CustomBottomNavBarState extends State<CustomBottomNavBar>
                 behavior: HitTestBehavior.translucent,
                 child: FadeTransition(
                   opacity: _expandAnimation,
-                  child: Container(
-                    color: Colors.black.withOpacity(0.6),
-                  ),
+                  child: Container(color: Colors.black.withOpacity(0.6)),
                 ),
               ),
             ),

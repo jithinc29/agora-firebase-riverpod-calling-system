@@ -3,7 +3,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:call_project/features/auth/models/user_model.dart';
 import 'package:call_project/features/home/presentation/widgets/feed_post_card.dart';
-import 'package:call_project/features/home/presentation/screens/home_screen.dart' show AppColors;
+import 'package:call_project/features/home/presentation/screens/home_screen.dart'
+    show AppColors;
 
 class UserPostsScreen extends ConsumerStatefulWidget {
   final UserModel currentUser;
@@ -37,7 +38,8 @@ class _UserPostsScreenState extends ConsumerState<UserPostsScreen> {
 
   Future<void> _loadPosts() async {
     setState(() {
-      if (widget.initialIndex > 0 && widget.initialIndex < widget.posts.length) {
+      if (widget.initialIndex > 0 &&
+          widget.initialIndex < widget.posts.length) {
         _posts = widget.posts.sublist(widget.initialIndex);
       } else {
         _posts = List.from(widget.posts);
@@ -57,7 +59,13 @@ class _UserPostsScreenState extends ConsumerState<UserPostsScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Posts', style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold)),
+        title: const Text(
+          'Posts',
+          style: TextStyle(
+            color: AppColors.textPrimary,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         backgroundColor: Colors.white,
         elevation: 0,
         iconTheme: const IconThemeData(color: AppColors.textPrimary),

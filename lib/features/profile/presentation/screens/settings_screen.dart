@@ -16,9 +16,7 @@ class SettingsScreen extends ConsumerWidget {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => Dialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(24),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         backgroundColor: Colors.white,
         elevation: 0,
         child: Padding(
@@ -26,7 +24,6 @@ class SettingsScreen extends ConsumerWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-
               const Text(
                 'Are you sure you want to log out of your account?',
                 textAlign: TextAlign.center,
@@ -100,9 +97,7 @@ class SettingsScreen extends ConsumerWidget {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(24),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         title: const Text('Delete Account?'),
         content: const Text(
           'This action cannot be undone. All your data will be permanently deleted.',
@@ -110,7 +105,10 @@ class SettingsScreen extends ConsumerWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel', style: TextStyle(color: AppColors.textSecondary)),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
@@ -132,11 +130,10 @@ class SettingsScreen extends ConsumerWidget {
         showDialog(
           context: context,
           barrierDismissible: false,
-          builder: (context) => const Center(
-            child: CircularProgressIndicator(),
-          ),
+          builder: (context) =>
+              const Center(child: CircularProgressIndicator()),
         );
-        
+
         try {
           await ref.read(authControllerProvider.notifier).deleteAccount();
           if (context.mounted) {
@@ -163,7 +160,11 @@ class SettingsScreen extends ConsumerWidget {
         elevation: 0,
         centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.textPrimary, size: 20),
+          icon: const Icon(
+            Icons.arrow_back_ios_new_rounded,
+            color: AppColors.textPrimary,
+            size: 20,
+          ),
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
@@ -211,7 +212,9 @@ class SettingsScreen extends ConsumerWidget {
                   onTap: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => const BlockListScreen()),
+                      MaterialPageRoute(
+                        builder: (_) => const BlockListScreen(),
+                      ),
                     );
                   },
                 ),
@@ -278,7 +281,11 @@ class SettingsScreen extends ConsumerWidget {
       ),
       trailing: hideArrow
           ? null
-          : const Icon(Icons.arrow_forward_ios_rounded, color: AppColors.textSecondary, size: 14),
+          : const Icon(
+              Icons.arrow_forward_ios_rounded,
+              color: AppColors.textSecondary,
+              size: 14,
+            ),
       onTap: onTap,
     );
   }

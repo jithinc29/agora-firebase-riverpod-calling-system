@@ -1,51 +1,36 @@
 import 'package:call_project/core/utils/time_utils.dart';
+import 'package:call_project/features/home/presentation/widgets/post_video_player.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:video_player/video_player.dart';
-import 'package:visibility_detector/visibility_detector.dart';
 import 'package:call_project/features/auth/models/user_model.dart';
 import 'package:call_project/core/services/notification_service.dart';
-import 'package:call_project/features/home/presentation/screens/home_screen.dart' show AppColors, feedMuteProvider, PostVideoPlayer;
+import 'package:call_project/features/home/presentation/screens/home_screen.dart'
+    show AppColors;
 import 'package:flutter/services.dart';
 import 'package:call_project/core/providers/refresh_provider.dart';
 
-  class FeedPostCard extends ConsumerStatefulWidget {
+class FeedPostCard extends ConsumerStatefulWidget {
   final VoidCallback? onPostDeleted;
   final VoidCallback? onPostHidden;
   final DocumentSnapshot postDoc;
   final UserModel currentUser;
-  const FeedPostCard({Key? key, required this.postDoc, required this.currentUser, this.onPostDeleted, this.onPostHidden}) : super(key: key);
+  const FeedPostCard({
+    Key? key,
+    required this.postDoc,
+    required this.currentUser,
+    this.onPostDeleted,
+    this.onPostHidden,
+  }) : super(key: key);
   @override
   ConsumerState<FeedPostCard> createState() => _FeedPostCardState();
 }
 
 class _FeedPostCardState extends ConsumerState<FeedPostCard> {
-  VideoPlayerController? _videoController;
-  bool _isVideoInitialized = false;
-
-  @override
-  void initState() {
-    super.initState();
-    final data = widget.postDoc.data() as Map<String, dynamic>? ?? {};
-    final isVideo = data['type'] == 'video' || data.containsKey('videoUrl');
-    if (isVideo) {
-      final url = data['mediaUrl'] ?? data['videoUrl'];
-      if (url != null) {
-        _videoController = VideoPlayerController.networkUrl(Uri.parse(url));
-        _videoController!.initialize().then((_) {
-          if (mounted) setState(() { _isVideoInitialized = true; });
-          _videoController!.setLooping(true);
-        });
-      }
-    }
-  }
-
   @override
   void dispose() {
-    _videoController?.dispose();
     super.dispose();
   }
 
@@ -59,8 +44,11 @@ class _FeedPostCardState extends ConsumerState<FeedPostCard> {
     final String? photoUrl = data['photoUrl'];
     final String text = data['text'] ?? data['caption'] ?? '';
     final int timestampMillis = parseTimestamp(data['timestamp']);
-    final DateTime? timestampDate = timestampMillis > 0 ? DateTime.fromMillisecondsSinceEpoch(timestampMillis) : null;
-    final String? type = data['type'] ?? (data.containsKey('videoUrl') ? 'video' : null);
+    final DateTime? timestampDate = timestampMillis > 0
+        ? DateTime.fromMillisecondsSinceEpoch(timestampMillis)
+        : null;
+    final String? type =
+        data['type'] ?? (data.containsKey('videoUrl') ? 'video' : null);
     final String? mediaUrl = data['mediaUrl'] ?? data['videoUrl'];
     final String? thumbnailUrl = data['thumbnailUrl'] ?? data['thumbnail'];
 
@@ -101,8 +89,16 @@ class _FeedPostCardState extends ConsumerState<FeedPostCard> {
             children: [
               CircleAvatar(
                 radius: 16,
-                backgroundImage: photoUrl != null ? CachedNetworkImageProvider(photoUrl) : null,
-                child: photoUrl == null ? Text(displayName.isNotEmpty ? displayName[0].toUpperCase() : '?') : null,
+                backgroundImage: photoUrl != null
+                    ? CachedNetworkImageProvider(photoUrl)
+                    : null,
+                child: photoUrl == null
+                    ? Text(
+                        displayName.isNotEmpty
+                            ? displayName[0].toUpperCase()
+                            : '?',
+                      )
+                    : null,
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -128,8 +124,15 @@ class _FeedPostCardState extends ConsumerState<FeedPostCard> {
                 ),
               ),
               IconButton(
-                onPressed: () => _showPostOptionsMenu(context, initialPostDoc, currentUser.uid),
-                icon: const Icon(Icons.more_horiz_rounded, color: AppColors.textSecondary),
+                onPressed: () => _showPostOptionsMenu(
+                  context,
+                  initialPostDoc,
+                  currentUser.uid,
+                ),
+                icon: const Icon(
+                  Icons.more_horiz_rounded,
+                  color: AppColors.textSecondary,
+                ),
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
               ),
@@ -160,7 +163,8 @@ class _FeedPostCardState extends ConsumerState<FeedPostCard> {
                 stream: initialPostDoc.reference.snapshots(),
                 builder: (context, snapshot) {
                   final postDoc = snapshot.data ?? initialPostDoc;
-                  final postData = postDoc.data() as Map<String, dynamic>? ?? {};
+                  final postData =
+                      postDoc.data() as Map<String, dynamic>? ?? {};
                   final List<dynamic> likes = postData['likes'] ?? [];
                   final isLiked = likes.contains(currentUser.uid);
                   final likeCount = likes.length;
@@ -178,7 +182,9 @@ class _FeedPostCardState extends ConsumerState<FeedPostCard> {
                     child: Row(
                       children: [
                         Icon(
-                          isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                          isLiked
+                              ? Icons.favorite_rounded
+                              : Icons.favorite_border_rounded,
                           color: isLiked ? Colors.red : AppColors.textSecondary,
                           size: 20,
                         ),
@@ -186,7 +192,9 @@ class _FeedPostCardState extends ConsumerState<FeedPostCard> {
                         Text(
                           '$likeCount',
                           style: TextStyle(
-                            color: isLiked ? Colors.red : AppColors.textSecondary,
+                            color: isLiked
+                                ? Colors.red
+                                : AppColors.textSecondary,
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
                           ),
@@ -198,7 +206,11 @@ class _FeedPostCardState extends ConsumerState<FeedPostCard> {
               ),
               const SizedBox(width: 20),
               GestureDetector(
-                onTap: () => _showCommentsBottomSheet(context, initialPostDoc, currentUser),
+                onTap: () => _showCommentsBottomSheet(
+                  context,
+                  initialPostDoc,
+                  currentUser,
+                ),
                 behavior: HitTestBehavior.opaque,
                 child: Row(
                   children: [
@@ -209,9 +221,13 @@ class _FeedPostCardState extends ConsumerState<FeedPostCard> {
                     ),
                     const SizedBox(width: 4),
                     StreamBuilder<QuerySnapshot>(
-                      stream: initialPostDoc.reference.collection('comments').snapshots(),
+                      stream: initialPostDoc.reference
+                          .collection('comments')
+                          .snapshots(),
                       builder: (context, snapshot) {
-                        final count = snapshot.hasData ? snapshot.data!.docs.length : 0;
+                        final count = snapshot.hasData
+                            ? snapshot.data!.docs.length
+                            : 0;
                         return Text(
                           '$count',
                           style: const TextStyle(
@@ -228,9 +244,13 @@ class _FeedPostCardState extends ConsumerState<FeedPostCard> {
               const Spacer(),
               IconButton(
                 onPressed: () {
-                  final link = 'https://callingapp.page.link/post/${initialPostDoc.id}';
+                  final link =
+                      'https://callingapp.page.link/post/${initialPostDoc.id}';
                   Clipboard.setData(ClipboardData(text: link));
-                  TopNotificationService.showSuccess(context, 'Post link copied to clipboard!');
+                  TopNotificationService.showSuccess(
+                    context,
+                    'Post link copied to clipboard!',
+                  );
                 },
                 icon: const Icon(
                   Icons.share_outlined,
@@ -247,7 +267,11 @@ class _FeedPostCardState extends ConsumerState<FeedPostCard> {
     );
   }
 
-  Widget _buildPostCardMedia(String? type, String mediaUrl, String? thumbnailUrl) {
+  Widget _buildPostCardMedia(
+    String? type,
+    String mediaUrl,
+    String? thumbnailUrl,
+  ) {
     if (type == 'image') {
       return ClipRRect(
         borderRadius: BorderRadius.circular(16),
@@ -258,9 +282,7 @@ class _FeedPostCardState extends ConsumerState<FeedPostCard> {
           fadeInDuration: Duration.zero,
           placeholder: (context, url) => AspectRatio(
             aspectRatio: 1.0,
-            child: Container(
-              color: Colors.black12,
-            ),
+            child: Container(color: Colors.black12),
           ),
           errorWidget: (context, url, error) => AspectRatio(
             aspectRatio: 1.0,
@@ -278,14 +300,21 @@ class _FeedPostCardState extends ConsumerState<FeedPostCard> {
         borderRadius: BorderRadius.circular(16),
         child: Container(
           color: Colors.black,
-          child: PostVideoPlayer(videoUrl: mediaUrl, thumbnailUrl: thumbnailUrl),
+          child: PostVideoPlayer(
+            videoUrl: mediaUrl,
+            thumbnailUrl: thumbnailUrl,
+          ),
         ),
       );
     }
     return const SizedBox.shrink();
   }
 
-  void _showPostOptionsMenu(BuildContext context, DocumentSnapshot postDoc, String currentUserId) {
+  void _showPostOptionsMenu(
+    BuildContext context,
+    DocumentSnapshot postDoc,
+    String currentUserId,
+  ) {
     final data = postDoc.data() as Map<String, dynamic>? ?? {};
     final String authorId = data['uid'] ?? '';
     final bool isOwner = authorId == currentUserId;
@@ -318,22 +347,36 @@ class _FeedPostCardState extends ConsumerState<FeedPostCard> {
               ),
               if (isOwner)
                 ListTile(
-                  leading: const Icon(Icons.delete_outline_rounded, color: Colors.red),
-                  title: const Text('Delete Post', style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600)),
+                  leading: const Icon(
+                    Icons.delete_outline_rounded,
+                    color: Colors.red,
+                  ),
+                  title: const Text(
+                    'Delete Post',
+                    style: TextStyle(
+                      color: Colors.red,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                   onTap: () {
                     Navigator.pop(sheetContext); // close bottom sheet
-                    _confirmDeletePost(outerContext, postDoc); // use outer context for dialog
+                    _confirmDeletePost(
+                      outerContext,
+                      postDoc,
+                    ); // use outer context for dialog
                   },
                 ),
               if (isOwner)
                 ListTile(
                   leading: Icon(
-                    data['isHidden'] == true ? Icons.visibility_rounded : Icons.visibility_off_outlined, 
-                    color: AppColors.textPrimary
+                    data['isHidden'] == true
+                        ? Icons.visibility_rounded
+                        : Icons.visibility_off_outlined,
+                    color: AppColors.textPrimary,
                   ),
                   title: Text(
-                    data['isHidden'] == true ? 'Unhide Post' : 'Archive Post', 
-                    style: const TextStyle(color: AppColors.textPrimary)
+                    data['isHidden'] == true ? 'Unhide Post' : 'Archive Post',
+                    style: const TextStyle(color: AppColors.textPrimary),
                   ),
                   onTap: () async {
                     Navigator.pop(sheetContext);
@@ -342,21 +385,32 @@ class _FeedPostCardState extends ConsumerState<FeedPostCard> {
                     ref.read(mediaRefreshProvider.notifier).state++;
                     if (outerContext.mounted) {
                       TopNotificationService.showSuccess(
-                        outerContext, 
-                        isHidden ? 'Post unhidden and visible in feed' : 'Post archived to your profile'
+                        outerContext,
+                        isHidden
+                            ? 'Post unhidden and visible in feed'
+                            : 'Post archived to your profile',
                       );
                     }
                   },
                 )
               else
                 ListTile(
-                  leading: const Icon(Icons.visibility_off_outlined, color: AppColors.textPrimary),
-                  title: const Text('Hide Post', style: TextStyle(color: AppColors.textPrimary)),
+                  leading: const Icon(
+                    Icons.visibility_off_outlined,
+                    color: AppColors.textPrimary,
+                  ),
+                  title: const Text(
+                    'Hide Post',
+                    style: TextStyle(color: AppColors.textPrimary),
+                  ),
                   onTap: () {
                     Navigator.pop(sheetContext);
                     if (widget.onPostHidden != null) widget.onPostHidden!();
                     if (outerContext.mounted) {
-                      TopNotificationService.showSuccess(outerContext, 'Post hidden');
+                      TopNotificationService.showSuccess(
+                        outerContext,
+                        'Post hidden',
+                      );
                     }
                   },
                 ),
@@ -373,12 +427,23 @@ class _FeedPostCardState extends ConsumerState<FeedPostCard> {
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Delete Post', style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold)),
-        content: const Text('Are you sure you want to delete this post permanently? This action cannot be undone.'),
+        title: const Text(
+          'Delete Post',
+          style: TextStyle(
+            color: AppColors.textPrimary,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        content: const Text(
+          'Are you sure you want to delete this post permanently? This action cannot be undone.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel', style: TextStyle(color: AppColors.textSecondary)),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
           ),
           TextButton(
             onPressed: () async {
@@ -389,12 +454,19 @@ class _FeedPostCardState extends ConsumerState<FeedPostCard> {
                 final videoUrl = data['videoUrl'] as String?;
                 final thumbnail = data['thumbnail'] as String?;
                 final thumbnailUrl = data['thumbnailUrl'] as String?;
-                
-                final urlsToDelete = [mediaUrl, videoUrl, thumbnail, thumbnailUrl].where((url) => url != null && url.isNotEmpty).toList();
-                
+
+                final urlsToDelete = [
+                  mediaUrl,
+                  videoUrl,
+                  thumbnail,
+                  thumbnailUrl,
+                ].where((url) => url != null && url.isNotEmpty).toList();
+
                 for (final url in urlsToDelete) {
                   try {
-                    final storageRef = FirebaseStorage.instance.refFromURL(url!);
+                    final storageRef = FirebaseStorage.instance.refFromURL(
+                      url!,
+                    );
                     await storageRef.delete();
                   } catch (e) {
                     debugPrint('Failed to delete media from storage: $e');
@@ -406,22 +478,35 @@ class _FeedPostCardState extends ConsumerState<FeedPostCard> {
                 }
                 ref.read(mediaRefreshProvider.notifier).state++;
                 if (context.mounted) {
-                  TopNotificationService.showSuccess(context, 'Post deleted successfully');
+                  TopNotificationService.showSuccess(
+                    context,
+                    'Post deleted successfully',
+                  );
                 }
               } catch (e) {
                 if (context.mounted) {
-                  TopNotificationService.showError(context, 'Failed to delete post: $e');
+                  TopNotificationService.showError(
+                    context,
+                    'Failed to delete post: $e',
+                  );
                 }
               }
             },
-            child: const Text('Delete', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+            child: const Text(
+              'Delete',
+              style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+            ),
           ),
         ],
       ),
     );
   }
 
-  void _showCommentsBottomSheet(BuildContext context, DocumentSnapshot postDoc, UserModel currentUser) {
+  void _showCommentsBottomSheet(
+    BuildContext context,
+    DocumentSnapshot postDoc,
+    UserModel currentUser,
+  ) {
     final textController = TextEditingController();
     final focusNode = FocusNode();
     String? replyToCommentId;
@@ -440,7 +525,6 @@ class _FeedPostCardState extends ConsumerState<FeedPostCard> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) {
-
         return StatefulBuilder(
           builder: (context, setState) {
             return Container(
@@ -474,10 +558,15 @@ class _FeedPostCardState extends ConsumerState<FeedPostCard> {
                       stream: commentsStream,
                       builder: (context, snapshot) {
                         if (snapshot.hasError) {
-                          return Center(child: Text('Error: ${snapshot.error}'));
+                          return Center(
+                            child: Text('Error: ${snapshot.error}'),
+                          );
                         }
-                        if (snapshot.connectionState == ConnectionState.waiting) {
-                          return const Center(child: CircularProgressIndicator());
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return const Center(
+                            child: CircularProgressIndicator(),
+                          );
                         }
 
                         final commentDocs = snapshot.data?.docs ?? [];
@@ -485,7 +574,10 @@ class _FeedPostCardState extends ConsumerState<FeedPostCard> {
                           return const Center(
                             child: Text(
                               'No comments yet. Start the conversation!',
-                              style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                              style: TextStyle(
+                                color: AppColors.textSecondary,
+                                fontSize: 13,
+                              ),
                             ),
                           );
                         }
@@ -502,20 +594,27 @@ class _FeedPostCardState extends ConsumerState<FeedPostCard> {
                               (data['parentId'] as String).isNotEmpty;
                         }).toList();
 
-                        final Map<String, List<DocumentSnapshot>> repliesByParent = {};
+                        final Map<String, List<DocumentSnapshot>>
+                        repliesByParent = {};
                         for (var reply in replies) {
                           final data = reply.data() as Map<String, dynamic>;
                           final parentId = data['parentId'] as String;
-                          repliesByParent.putIfAbsent(parentId, () => []).add(reply);
+                          repliesByParent
+                              .putIfAbsent(parentId, () => [])
+                              .add(reply);
                         }
 
                         final currentUserUid = currentUser.uid;
-                        final postAuthorUid = (postDoc.data() as Map<String, dynamic>?)?['uid'] as String?;
+                        final postAuthorUid =
+                            (postDoc.data() as Map<String, dynamic>?)?['uid']
+                                as String?;
 
                         final List<Widget> listItems = [];
                         for (var parent in parentComments) {
-                          final parentData = parent.data() as Map<String, dynamic>? ?? {};
-                          final parentLikes = parentData['likes'] as List<dynamic>? ?? [];
+                          final parentData =
+                              parent.data() as Map<String, dynamic>? ?? {};
+                          final parentLikes =
+                              parentData['likes'] as List<dynamic>? ?? [];
                           listItems.add(
                             _buildCommentItem(
                               commentDoc: parent,
@@ -523,34 +622,50 @@ class _FeedPostCardState extends ConsumerState<FeedPostCard> {
                               isLiked: parentLikes.contains(currentUserUid),
                               likeCount: parentLikes.length,
                               onLikeTap: () {
-                                final updatedLikes = List<String>.from(parentLikes.map((e) => e.toString()));
+                                final updatedLikes = List<String>.from(
+                                  parentLikes.map((e) => e.toString()),
+                                );
                                 if (updatedLikes.contains(currentUserUid)) {
                                   updatedLikes.remove(currentUserUid);
                                 } else {
                                   updatedLikes.add(currentUserUid);
                                 }
-                                parent.reference.update({'likes': updatedLikes});
+                                parent.reference.update({
+                                  'likes': updatedLikes,
+                                });
                               },
-                              onLongPress: () => _showCommentOptions(context, parent, currentUserUid, postAuthorUid),
+                              onLongPress: () => _showCommentOptions(
+                                context,
+                                parent,
+                                currentUserUid,
+                                postAuthorUid,
+                              ),
                               onReplyTap: () {
-                                final name = parentData['displayName'] ?? 'Anonymous';
+                                final name =
+                                    parentData['displayName'] ?? 'Anonymous';
                                 setState(() {
                                   replyToCommentId = parent.id;
                                   replyToUsername = name;
                                   textController.text = '@$name ';
-                                  textController.selection = TextSelection.fromPosition(
-                                    TextPosition(offset: textController.text.length),
-                                  );
+                                  textController.selection =
+                                      TextSelection.fromPosition(
+                                        TextPosition(
+                                          offset: textController.text.length,
+                                        ),
+                                      );
                                 });
                                 focusNode.requestFocus();
                               },
                             ),
                           );
 
-                          final parentReplies = repliesByParent[parent.id] ?? [];
+                          final parentReplies =
+                              repliesByParent[parent.id] ?? [];
                           for (var reply in parentReplies) {
-                            final replyData = reply.data() as Map<String, dynamic>? ?? {};
-                            final replyLikes = replyData['likes'] as List<dynamic>? ?? [];
+                            final replyData =
+                                reply.data() as Map<String, dynamic>? ?? {};
+                            final replyLikes =
+                                replyData['likes'] as List<dynamic>? ?? [];
                             listItems.add(
                               Padding(
                                 padding: const EdgeInsets.only(left: 36.0),
@@ -560,24 +675,38 @@ class _FeedPostCardState extends ConsumerState<FeedPostCard> {
                                   isLiked: replyLikes.contains(currentUserUid),
                                   likeCount: replyLikes.length,
                                   onLikeTap: () {
-                                    final updatedLikes = List<String>.from(replyLikes.map((e) => e.toString()));
+                                    final updatedLikes = List<String>.from(
+                                      replyLikes.map((e) => e.toString()),
+                                    );
                                     if (updatedLikes.contains(currentUserUid)) {
                                       updatedLikes.remove(currentUserUid);
                                     } else {
                                       updatedLikes.add(currentUserUid);
                                     }
-                                    reply.reference.update({'likes': updatedLikes});
+                                    reply.reference.update({
+                                      'likes': updatedLikes,
+                                    });
                                   },
-                                  onLongPress: () => _showCommentOptions(context, reply, currentUserUid, postAuthorUid),
+                                  onLongPress: () => _showCommentOptions(
+                                    context,
+                                    reply,
+                                    currentUserUid,
+                                    postAuthorUid,
+                                  ),
                                   onReplyTap: () {
-                                    final name = replyData['displayName'] ?? 'Anonymous';
+                                    final name =
+                                        replyData['displayName'] ?? 'Anonymous';
                                     setState(() {
                                       replyToCommentId = parent.id;
                                       replyToUsername = name;
                                       textController.text = '@$name ';
-                                      textController.selection = TextSelection.fromPosition(
-                                        TextPosition(offset: textController.text.length),
-                                      );
+                                      textController.selection =
+                                          TextSelection.fromPosition(
+                                            TextPosition(
+                                              offset:
+                                                  textController.text.length,
+                                            ),
+                                          );
                                     });
                                     focusNode.requestFocus();
                                   },
@@ -599,7 +728,10 @@ class _FeedPostCardState extends ConsumerState<FeedPostCard> {
                   if (replyToUsername != null)
                     Container(
                       color: Colors.grey[50],
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 6,
+                      ),
                       child: Row(
                         children: [
                           Text(
@@ -616,7 +748,9 @@ class _FeedPostCardState extends ConsumerState<FeedPostCard> {
                                 replyToCommentId = null;
                                 replyToUsername = null;
                                 // Optional: clear the textfield if they cancel the reply and it was just the username
-                                if (textController.text.trim().startsWith('@')) {
+                                if (textController.text.trim().startsWith(
+                                  '@',
+                                )) {
                                   textController.clear();
                                 }
                               });
@@ -634,52 +768,70 @@ class _FeedPostCardState extends ConsumerState<FeedPostCard> {
                     height: 40,
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      border: Border(bottom: BorderSide(color: Colors.grey[200]!)),
+                      border: Border(
+                        bottom: BorderSide(color: Colors.grey[200]!),
+                      ),
                     ),
                     child: ListView(
                       scrollDirection: Axis.horizontal,
                       padding: const EdgeInsets.symmetric(horizontal: 8),
-                      children: ['❤️', '🔥', '😂', '👏', '😍', '😢', '🙌', '😮'].map((emoji) {
-                        return InkWell(
-                          onTap: () {
-                            final text = textController.text;
-                            final selection = textController.selection;
-                            String newText;
-                            if (selection.isValid) {
-                              newText = text.replaceRange(selection.start, selection.end, emoji);
-                            } else {
-                              newText = text + emoji;
-                            }
-                            textController.text = newText;
-                            textController.selection = TextSelection.fromPosition(
-                              TextPosition(offset: newText.length),
+                      children: ['❤️', '🔥', '😂', '👏', '😍', '😢', '🙌', '😮']
+                          .map((emoji) {
+                            return InkWell(
+                              onTap: () {
+                                final text = textController.text;
+                                final selection = textController.selection;
+                                String newText;
+                                if (selection.isValid) {
+                                  newText = text.replaceRange(
+                                    selection.start,
+                                    selection.end,
+                                    emoji,
+                                  );
+                                } else {
+                                  newText = text + emoji;
+                                }
+                                textController.text = newText;
+                                textController.selection =
+                                    TextSelection.fromPosition(
+                                      TextPosition(offset: newText.length),
+                                    );
+                              },
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 8,
+                                ),
+                                child: Text(
+                                  emoji,
+                                  style: const TextStyle(fontSize: 18),
+                                ),
+                              ),
                             );
-                          },
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                            child: Text(
-                              emoji,
-                              style: const TextStyle(fontSize: 18),
-                            ),
-                          ),
-                        );
-                      }).toList(),
+                          })
+                          .toList(),
                     ),
                   ),
                   SafeArea(
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
                       child: Row(
                         children: [
                           CircleAvatar(
                             radius: 14,
                             backgroundImage: currentUser.photoUrl != null
-                                ? CachedNetworkImageProvider(currentUser.photoUrl!)
+                                ? CachedNetworkImageProvider(
+                                    currentUser.photoUrl!,
+                                  )
                                 : null,
                             child: currentUser.photoUrl == null
                                 ? Text(
                                     currentUser.displayName.isNotEmpty
-                                        ? currentUser.displayName[0].toUpperCase()
+                                        ? currentUser.displayName[0]
+                                              .toUpperCase()
                                         : '?',
                                     style: const TextStyle(fontSize: 10),
                                   )
@@ -693,12 +845,20 @@ class _FeedPostCardState extends ConsumerState<FeedPostCard> {
                               maxLines: null,
                               decoration: const InputDecoration(
                                 hintText: 'Add a comment...',
-                                hintStyle: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                                hintStyle: TextStyle(
+                                  color: AppColors.textSecondary,
+                                  fontSize: 13,
+                                ),
                                 border: InputBorder.none,
                                 isDense: true,
-                                contentPadding: EdgeInsets.symmetric(vertical: 8),
+                                contentPadding: EdgeInsets.symmetric(
+                                  vertical: 8,
+                                ),
                               ),
-                              style: const TextStyle(fontSize: 13, color: AppColors.textPrimary),
+                              style: const TextStyle(
+                                fontSize: 13,
+                                color: AppColors.textPrimary,
+                              ),
                             ),
                           ),
                           TextButton(
@@ -723,11 +883,15 @@ class _FeedPostCardState extends ConsumerState<FeedPostCard> {
                               focusNode.unfocus();
 
                               try {
-                                await postDoc.reference.collection('comments').add(commentData);
+                                await postDoc.reference
+                                    .collection('comments')
+                                    .add(commentData);
                               } catch (e) {
                                 if (context.mounted) {
                                   TopNotificationService.showError(
-                                      context, 'Failed to add comment: $e');
+                                    context,
+                                    'Failed to add comment: $e',
+                                  );
                                 }
                               }
                             },
@@ -765,7 +929,9 @@ class _FeedPostCardState extends ConsumerState<FeedPostCard> {
     final data = commentDoc.data() as Map<String, dynamic>? ?? {};
     final commentAuthorUid = data['uid'] as String?;
 
-    final canDelete = (currentUserUid == commentAuthorUid) || (currentUserUid == postAuthorUid);
+    final canDelete =
+        (currentUserUid == commentAuthorUid) ||
+        (currentUserUid == postAuthorUid);
 
     showModalBottomSheet(
       context: context,
@@ -789,8 +955,14 @@ class _FeedPostCardState extends ConsumerState<FeedPostCard> {
               ),
               if (canDelete)
                 ListTile(
-                  leading: const Icon(Icons.delete_outline_rounded, color: Colors.red),
-                  title: const Text('Delete Comment', style: TextStyle(color: Colors.red)),
+                  leading: const Icon(
+                    Icons.delete_outline_rounded,
+                    color: Colors.red,
+                  ),
+                  title: const Text(
+                    'Delete Comment',
+                    style: TextStyle(color: Colors.red),
+                  ),
                   onTap: () {
                     commentDoc.reference.delete();
                     Navigator.pop(context);
@@ -798,11 +970,20 @@ class _FeedPostCardState extends ConsumerState<FeedPostCard> {
                 ),
               if (!canDelete) ...[
                 ListTile(
-                  leading: const Icon(Icons.report_gmailerrorred_rounded, color: Colors.red),
-                  title: const Text('Report', style: TextStyle(color: Colors.red)),
+                  leading: const Icon(
+                    Icons.report_gmailerrorred_rounded,
+                    color: Colors.red,
+                  ),
+                  title: const Text(
+                    'Report',
+                    style: TextStyle(color: Colors.red),
+                  ),
                   onTap: () {
                     Navigator.pop(context);
-                    TopNotificationService.showSuccess(context, 'Comment reported');
+                    TopNotificationService.showSuccess(
+                      context,
+                      'Comment reported',
+                    );
                   },
                 ),
                 ListTile(
@@ -835,7 +1016,9 @@ class _FeedPostCardState extends ConsumerState<FeedPostCard> {
     final String? photoUrl = data['photoUrl'];
     final String text = data['text'] ?? '';
     final int timestampMillis = parseTimestamp(data['timestamp']);
-    final DateTime? timestampDate = timestampMillis > 0 ? DateTime.fromMillisecondsSinceEpoch(timestampMillis) : null;
+    final DateTime? timestampDate = timestampMillis > 0
+        ? DateTime.fromMillisecondsSinceEpoch(timestampMillis)
+        : null;
 
     String timeAgo = 'Just now';
     if (timestampDate != null) {
@@ -864,10 +1047,14 @@ class _FeedPostCardState extends ConsumerState<FeedPostCard> {
           children: [
             CircleAvatar(
               radius: isReply ? 12 : 14,
-              backgroundImage: photoUrl != null ? CachedNetworkImageProvider(photoUrl) : null,
+              backgroundImage: photoUrl != null
+                  ? CachedNetworkImageProvider(photoUrl)
+                  : null,
               child: photoUrl == null
                   ? Text(
-                      displayName.isNotEmpty ? displayName[0].toUpperCase() : '?',
+                      displayName.isNotEmpty
+                          ? displayName[0].toUpperCase()
+                          : '?',
                       style: TextStyle(fontSize: isReply ? 8 : 10),
                     )
                   : null,
@@ -879,7 +1066,10 @@ class _FeedPostCardState extends ConsumerState<FeedPostCard> {
                 children: [
                   RichText(
                     text: TextSpan(
-                      style: const TextStyle(color: AppColors.textPrimary, fontSize: 12),
+                      style: const TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 12,
+                      ),
                       children: [
                         TextSpan(
                           text: '$displayName ',
@@ -902,7 +1092,10 @@ class _FeedPostCardState extends ConsumerState<FeedPostCard> {
                     children: [
                       Text(
                         timeAgo,
-                        style: const TextStyle(color: AppColors.textSecondary, fontSize: 10),
+                        style: const TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 10,
+                        ),
                       ),
                       const SizedBox(width: 12),
                       GestureDetector(
@@ -927,7 +1120,9 @@ class _FeedPostCardState extends ConsumerState<FeedPostCard> {
                 GestureDetector(
                   onTap: onLikeTap,
                   child: Icon(
-                    isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                    isLiked
+                        ? Icons.favorite_rounded
+                        : Icons.favorite_border_rounded,
                     size: 14,
                     color: isLiked ? Colors.red : AppColors.textSecondary,
                   ),
@@ -936,9 +1131,12 @@ class _FeedPostCardState extends ConsumerState<FeedPostCard> {
                   const SizedBox(height: 2),
                   Text(
                     '$likeCount',
-                    style: const TextStyle(color: AppColors.textSecondary, fontSize: 10),
+                    style: const TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 10,
+                    ),
                   ),
-                ]
+                ],
               ],
             ),
           ],
@@ -946,5 +1144,4 @@ class _FeedPostCardState extends ConsumerState<FeedPostCard> {
       ),
     );
   }
-
 }

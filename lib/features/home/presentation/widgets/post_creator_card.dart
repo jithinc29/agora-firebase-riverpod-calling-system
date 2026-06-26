@@ -8,7 +8,8 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:video_compress/video_compress.dart';
 
 import 'package:call_project/features/auth/models/user_model.dart';
-import 'package:call_project/features/home/presentation/screens/home_screen.dart' show AppColors;
+import 'package:call_project/features/home/presentation/screens/home_screen.dart'
+    show AppColors;
 import 'package:photo_manager/photo_manager.dart';
 import 'package:call_project/features/home/presentation/utils/video_compression_service.dart';
 import 'package:call_project/features/home/presentation/screens/custom_gallery_picker.dart';
@@ -250,10 +251,7 @@ class _PostCreatorCardState extends ConsumerState<PostCreatorCard> {
                     isDense: true,
                     contentPadding: const EdgeInsets.symmetric(vertical: 6),
                   ),
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: AppColors.textPrimary,
-                  ),
+                  style: TextStyle(fontSize: 13, color: AppColors.textPrimary),
                 ),
               ),
               const SizedBox(width: 8),

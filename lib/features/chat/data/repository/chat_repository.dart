@@ -13,7 +13,8 @@ part 'chat_repository.g.dart';
 class ChatRepository {
   final FirebaseFirestore _firestore;
 
-  ChatRepository({required FirebaseFirestore firestore}) : _firestore = firestore;
+  ChatRepository({required FirebaseFirestore firestore})
+    : _firestore = firestore;
 
   String _getChatRoomId(String uid1, String uid2) {
     List<String> ids = [uid1, uid2];
@@ -21,7 +22,10 @@ class ChatRepository {
     return ids.join('_');
   }
 
-  Stream<List<MessageModel>> getMessages(String currentUserId, String receiverId) {
+  Stream<List<MessageModel>> getMessages(
+    String currentUserId,
+    String receiverId,
+  ) {
     final chatRoomId = _getChatRoomId(currentUserId, receiverId);
     return _firestore
         .collection('chats')
@@ -30,15 +34,15 @@ class ChatRepository {
         .orderBy('timestamp', descending: true)
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs
-          .map((doc) => MessageModel.fromMap(doc.data()))
-          .toList();
-    });
+          return snapshot.docs
+              .map((doc) => MessageModel.fromMap(doc.data()))
+              .toList();
+        });
   }
 
   Future<void> sendMessage(MessageModel message) async {
     final chatRoomId = _getChatRoomId(message.senderId, message.receiverId);
-    
+
     // Update the message in the sub-collection
     await _firestore
         .collection('chats')
@@ -56,25 +60,34 @@ class ChatRepository {
     }, SetOptions(merge: true));
 
     // Send Push Notification and add In-App Notification
-    final senderDoc = await _firestore.collection('users').doc(message.senderId).get();
+    final senderDoc = await _firestore
+        .collection('users')
+        .doc(message.senderId)
+        .get();
     final senderName = senderDoc.data()?['displayName'] ?? 'Someone';
     final senderPhoto = senderDoc.data()?['photoUrl'];
 
-    final receiverDoc = await _firestore.collection('users').doc(message.receiverId).get();
+    final receiverDoc = await _firestore
+        .collection('users')
+        .doc(message.receiverId)
+        .get();
     final receiverToken = receiverDoc.data()?['fcmToken'];
 
     if (receiverToken != null) {
       // Send via Vercel gateway
-      http.post(
-        Uri.parse('${AgoraConfig.tokenBaseUrl}/api/initiate_call'),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode({
-          't': 'message',
-          'title': senderName,
-          'body': message.content,
-          'receiverToken': receiverToken,
-        }),
-      ).timeout(const Duration(seconds: 10)).catchError((e) => null);
+      http
+          .post(
+            Uri.parse('${AgoraConfig.tokenBaseUrl}/api/initiate_call'),
+            headers: {'Content-Type': 'application/json'},
+            body: json.encode({
+              't': 'message',
+              'title': senderName,
+              'body': message.content,
+              'receiverToken': receiverToken,
+            }),
+          )
+          .timeout(const Duration(seconds: 10))
+          .catchError((e) => null);
     }
 
     // Add In-App Notification (optional, but requested for "received messages")
@@ -110,7 +123,10 @@ class ChatRepository {
         .map((snapshot) => snapshot.docs.length);
   }
 
-  Future<void> markMessagesAsRead(String currentUserId, String otherUserId) async {
+  Future<void> markMessagesAsRead(
+    String currentUserId,
+    String otherUserId,
+  ) async {
     final chatRoomId = _getChatRoomId(currentUserId, otherUserId);
     final messages = await _firestore
         .collection('chats')
@@ -127,7 +143,11 @@ class ChatRepository {
     await batch.commit();
   }
 
-  Future<void> deleteMessage(String currentUserId, String otherUserId, String messageId) async {
+  Future<void> deleteMessage(
+    String currentUserId,
+    String otherUserId,
+    String messageId,
+  ) async {
     final chatRoomId = _getChatRoomId(currentUserId, otherUserId);
     await _firestore
         .collection('chats')
@@ -144,11 +164,23 @@ ChatRepository chatRepository(Ref ref) {
 }
 
 @riverpod
-Stream<List<MessageModel>> chatMessages(Ref ref, {required String currentUserId, required String receiverId}) {
-  return ref.watch(chatRepositoryProvider).getMessages(currentUserId, receiverId);
+Stream<List<MessageModel>> chatMessages(
+  Ref ref, {
+  required String currentUserId,
+  required String receiverId,
+}) {
+  return ref
+      .watch(chatRepositoryProvider)
+      .getMessages(currentUserId, receiverId);
 }
 
 @riverpod
-Stream<int> unreadChatMessagesCount(Ref ref, {required String currentUserId, required String otherUserId}) {
-  return ref.watch(chatRepositoryProvider).getUnreadMessagesCount(currentUserId, otherUserId);
+Stream<int> unreadChatMessagesCount(
+  Ref ref, {
+  required String currentUserId,
+  required String otherUserId,
+}) {
+  return ref
+      .watch(chatRepositoryProvider)
+      .getUnreadMessagesCount(currentUserId, otherUserId);
 }
