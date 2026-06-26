@@ -8,9 +8,8 @@ import 'package:call_project/core/theme/app_colors.dart';
 import 'package:call_project/features/home/presentation/screens/home_screen.dart';
 
 // Import the user profile screen correctly based on its location
-// It might be in profile feature or home feature, so we assume it's imported via home_screen or we provide it directly.
-// In home_screen.dart it is accessed. We will rely on home_screen.dart's imports if needed, or define the exact import.
-import 'package:call_project/features/home/presentation/screens/user_profile_screen.dart';
+import 'package:call_project/features/users/presentation/screens/user_profile_screen.dart';
+import 'package:call_project/features/users/data/repository/user_repository.dart';
 
 class ChatsTab extends ConsumerWidget {
   final AsyncValue<List<UserModel>> usersAsync;
