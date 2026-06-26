@@ -1,4 +1,5 @@
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -358,7 +359,14 @@ class _PostVideoPlayerState extends ConsumerState<PostVideoPlayer>
                   ),
                 ),
               const Center(
-                child: CircularProgressIndicator(color: Colors.white),
+                child: SizedBox(
+                  width: 30,
+                  height: 30,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.5,
+                    color: Colors.white,
+                  ),
+                ),
               ),
             ],
           ),
@@ -376,7 +384,14 @@ class _PostVideoPlayerState extends ConsumerState<PostVideoPlayer>
                           4 /
                           5, // Fallback vertical ratio while downloading thumb
                       child: Center(
-                        child: CircularProgressIndicator(color: Colors.white),
+                        child: SizedBox(
+                  width: 30,
+                  height: 30,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.5,
+                    color: Colors.white,
+                  ),
+                ),
                       ),
                     ),
                     errorWidget: (context, url, error) => const AspectRatio(
@@ -385,26 +400,34 @@ class _PostVideoPlayerState extends ConsumerState<PostVideoPlayer>
                     ),
                   ),
                   const Center(
-                    child: CircularProgressIndicator(color: Colors.white),
+                    child: SizedBox(
+                  width: 30,
+                  height: 30,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.5,
+                    color: Colors.white,
+                  ),
+                ),
                   ),
                 ],
               )
             : const AspectRatio(
                 aspectRatio: 4 / 5,
                 child: Center(
-                  child: CircularProgressIndicator(color: Colors.white),
+                  child: SizedBox(
+                  width: 30,
+                  height: 30,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.5,
+                    color: Colors.white,
+                  ),
+                ),
                 ),
               );
       }
     } else {
-      final actualRatio = controller.value.aspectRatio;
-      // Cap the aspect ratio to a minimum of 4:5 (0.8) for feed videos.
-      // If the video is taller than 4:5 (e.g. 9:16 = 0.5625), force the container to be 4:5.
-      // If it's wider (e.g. 16:9 = 1.77), keep the natural ratio.
-      final displayRatio = actualRatio < 0.8 ? 0.8 : actualRatio;
-
       content = AspectRatio(
-        aspectRatio: displayRatio,
+        aspectRatio: controller.value.aspectRatio,
         child: Stack(
           alignment: Alignment.center,
           children: [
@@ -420,35 +443,30 @@ class _PostVideoPlayerState extends ConsumerState<PostVideoPlayer>
                     child: GestureDetector(
                       onTap: _restartVideo,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
-                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                         decoration: BoxDecoration(
                           color: Colors.white,
-                          borderRadius: BorderRadius.circular(20),
+                          borderRadius: BorderRadius.circular(100), // Perfect pill shape
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.1),
-                              blurRadius: 10,
+                              color: Colors.black.withValues(alpha: 0.2),
+                              blurRadius: 15,
+                              offset: const Offset(0, 5),
                             ),
                           ],
                         ),
                         child: const Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(
-                              Icons.play_arrow_rounded,
-                              color: Colors.black,
-                              size: 20,
-                            ),
+                            Icon(Icons.play_arrow_rounded, color: Colors.black, size: 20),
                             SizedBox(width: 6),
                             Text(
                               'Watch Again',
                               style: TextStyle(
                                 color: Colors.black,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 14,
+                                letterSpacing: 0.2,
                               ),
                             ),
                           ],
@@ -674,37 +692,30 @@ class _FullScreenFeedVideoScreenState
                               child: GestureDetector(
                                 onTap: _restartVideo,
                                 child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 16,
-                                    vertical: 8,
-                                  ),
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                                   decoration: BoxDecoration(
                                     color: Colors.white,
-                                    borderRadius: BorderRadius.circular(20),
+                                    borderRadius: BorderRadius.circular(100), // Perfect pill shape
                                     boxShadow: [
                                       BoxShadow(
-                                        color: Colors.black.withValues(
-                                          alpha: 0.1,
-                                        ),
-                                        blurRadius: 10,
+                                        color: Colors.black.withValues(alpha: 0.2),
+                                        blurRadius: 15,
+                                        offset: const Offset(0, 5),
                                       ),
                                     ],
                                   ),
                                   child: const Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      Icon(
-                                        Icons.play_arrow_rounded,
-                                        color: Colors.black,
-                                        size: 20,
-                                      ),
+                                      Icon(Icons.play_arrow_rounded, color: Colors.black, size: 20),
                                       SizedBox(width: 6),
                                       Text(
                                         'Watch Again',
                                         style: TextStyle(
                                           color: Colors.black,
-                                          fontWeight: FontWeight.w600,
-                                          fontSize: 13,
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 14,
+                                          letterSpacing: 0.2,
                                         ),
                                       ),
                                     ],
@@ -718,7 +729,14 @@ class _FullScreenFeedVideoScreenState
                   )
                 : const Center(
                     child: RepaintBoundary(
-                      child: CircularProgressIndicator(color: Colors.white),
+                      child: SizedBox(
+                        width: 36,
+                        height: 36,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.5,
+                          color: Colors.white,
+                        ),
+                      ),
                     ),
                   ),
           ),
