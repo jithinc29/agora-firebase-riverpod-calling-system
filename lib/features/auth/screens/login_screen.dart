@@ -25,10 +25,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   void _login() {
-    ref.read(authControllerProvider.notifier).signIn(
-          _emailController.text.trim(),
-          _passwordController.text.trim(),
-        );
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
+
+    if (email.isEmpty || password.isEmpty) {
+      TopNotificationService.showError(context, 'Please fill in all fields.');
+      return;
+    }
+
+    ref.read(authControllerProvider.notifier).signIn(email, password);
   }
 
   @override

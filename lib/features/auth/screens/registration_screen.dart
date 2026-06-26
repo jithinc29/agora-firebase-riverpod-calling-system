@@ -26,11 +26,16 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
   }
 
   void _register() async {
-    await ref.read(authControllerProvider.notifier).signUp(
-          _emailController.text.trim(),
-          _passwordController.text.trim(),
-          _nameController.text.trim(),
-        );
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
+    final name = _nameController.text.trim();
+
+    if (email.isEmpty || password.isEmpty || name.isEmpty) {
+      TopNotificationService.showError(context, 'Please fill in all fields.');
+      return;
+    }
+
+    await ref.read(authControllerProvider.notifier).signUp(email, password, name);
     
     final state = ref.read(authControllerProvider);
     if (mounted && !state.hasError) {
