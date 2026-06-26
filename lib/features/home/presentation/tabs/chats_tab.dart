@@ -3,12 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:call_project/features/auth/models/user_model.dart';
-import 'package:call_project/features/home/presentation/screens/search_bottom_sheet.dart';
-import 'package:call_project/core/theme/app_colors.dart';
+import 'package:call_project/features/home/presentation/screens/search_bottom_sheet.dart'
+    hide AppColors;
 import 'package:call_project/features/home/presentation/screens/home_screen.dart';
 
 // Import the user profile screen correctly based on its location
-import 'package:call_project/features/users/presentation/screens/user_profile_screen.dart';
+import 'package:call_project/features/users/presentation/screens/user_profile_screen.dart'
+    hide AppColors;
 import 'package:call_project/features/users/data/repository/user_repository.dart';
 
 class ChatsTab extends ConsumerWidget {
