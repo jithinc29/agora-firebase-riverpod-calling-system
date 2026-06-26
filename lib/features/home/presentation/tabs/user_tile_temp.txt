@@ -1,0 +1,121 @@
+  Widget _buildUserTile(UserModel user, UserModel currentUser, DateTime now) {
+    final isActuallyOnline =
+        user.isOnline && now.difference(user.lastSeen!).inMinutes < 2;
+    final isFollowing = currentUser.following.contains(user.uid);
+    final followBack = user.following.contains(currentUser.uid);
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+      decoration: BoxDecoration(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: ListTile(
+        onTap: () {
+          _pauseActiveReel();
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => UserProfileScreen(user: user)),
+          );
+        },
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+        leading: Stack(
+          children: [
+            Container(
+              width: 50,
+              height: 50,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: const LinearGradient(
+                  colors: [AppColors.primary, AppColors.secondary],
+                ),
+                border: Border.all(color: Colors.white, width: 2),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.primary.withValues(alpha: 0.1),
+                    blurRadius: 10,
+                  ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(28),
+                child: user.photoUrl != null
+                    ? CachedNetworkImage(
+                        imageUrl: user.photoUrl!,
+                        fit: BoxFit.cover,
+                        placeholder: (context, url) =>
+                            Container(color: Colors.black12),
+                        errorWidget: (context, url, error) =>
+                            const Icon(Icons.error),
+                      )
+                    : Center(
+                        child: Text(
+                          user.displayName[0].toUpperCase(),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 18,
+                          ),
+                        ),
+                      ),
+              ),
+            ),
+            if (isActuallyOnline)
+              Positioned(
+                right: 2,
+                bottom: 2,
+                child: Container(
+                  width: 14,
+                  height: 14,
+                  decoration: BoxDecoration(
+                    color: AppColors.success,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 2),
+                  ),
+                ),
+              ),
+          ],
+        ),
+        title: Text(
+          user.displayName,
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        subtitle: Row(
+          children: [
+            Text(
+              isActuallyOnline
+                  ? 'Online now'
+                  : _formatLastSeen(user.lastSeen, now),
+              style: const TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 12,
+              ),
+            ),
+            if (isFollowing && followBack) ...[
+              const SizedBox(width: 8),
+              const Icon(Icons.verified, color: AppColors.primary, size: 14),
+            ] else if (isFollowing) ...[
+              const SizedBox(width: 8),
+              const Text(
+                '• Following',
+                style: TextStyle(
+                  color: AppColors.primary,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ],
+        ),
+        trailing: const Icon(
+          Icons.chevron_right,
+          color: Colors.black12,
+          size: 20,
+        ),
+      ),
+    );
+  }
