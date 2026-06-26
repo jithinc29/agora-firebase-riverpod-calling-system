@@ -397,13 +397,29 @@ class _PostVideoPlayerState extends ConsumerState<PostVideoPlayer>
               );
       }
     } else {
+      final actualRatio = controller.value.aspectRatio;
+      // Cap the aspect ratio to a minimum of 4:5 (0.8) for feed videos.
+      // If the video is taller than 4:5 (e.g. 9:16 = 0.5625), force the container to be 4:5.
+      // If it's wider (e.g. 16:9 = 1.77), keep the natural ratio.
+      final displayRatio = actualRatio < 0.8 ? 0.8 : actualRatio;
+
       content = AspectRatio(
-        aspectRatio: controller.value.aspectRatio,
+        aspectRatio: displayRatio,
         child: Stack(
           alignment: Alignment.center,
           children: [
-            // Video Player
-            VideoPlayer(controller),
+            // Video Player (Cropped to fit if needed)
+            SizedBox.expand(
+              child: FittedBox(
+                fit: BoxFit.cover,
+                clipBehavior: Clip.hardEdge,
+                child: SizedBox(
+                  width: controller.value.size.width,
+                  height: controller.value.size.height,
+                  child: VideoPlayer(controller),
+                ),
+              ),
+            ),
             
             // Watch Again Overlay
             if (_isVideoFinished)
