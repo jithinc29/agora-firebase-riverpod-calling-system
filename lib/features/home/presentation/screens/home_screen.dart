@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:call_project/features/home/presentation/tabs/reels_tab.dart';
+import 'package:call_project/features/home/presentation/tabs/chats_tab.dart';
 import 'package:call_project/core/utils/time_utils.dart';
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -802,125 +803,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     User? currentUser,
     UserModel user,
   ) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(30),
-          topRight: Radius.circular(30),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black12,
-            blurRadius: 20,
-            offset: Offset(0, -5),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(24, 24, 24, 12),
-            child: TextField(
-              readOnly: true,
-              onTap: () {
-                showModalBottomSheet(
-                  context: context,
-                  isScrollControlled: true,
-                  useSafeArea: true,
-                  backgroundColor: Colors.transparent,
-                  builder: (context) => SearchBottomSheet(
-                    usersAsync: usersAsync,
-                    currentUser: currentUser,
-                  ),
-                );
-              },
-              decoration: InputDecoration(
-                hintText: 'Search...',
-                prefixIcon: const Icon(
-                  Icons.search_rounded,
-                  color: AppColors.textSecondary,
-                ),
-                filled: true,
-                fillColor: AppColors.background,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(20),
-                  borderSide: BorderSide.none,
-                ),
-                contentPadding: const EdgeInsets.symmetric(vertical: 0),
-              ),
-            ),
-          ),
-          Expanded(
-            child: usersAsync.when(
-              data: (users) {
-                final now = DateTime.now();
-                final otherUsers = users.where((u) {
-                  if (u.uid == currentUser?.uid) return false;
-                  if (u.displayName.trim().isEmpty) return false;
-                  if (u.lastSeen == null) return false;
-                  if (user.blockedUsers.contains(u.uid)) return false;
-                  if (u.blockedUsers.contains(user.uid)) return false;
-                  final difference = now.difference(u.lastSeen!);
-                  if (difference.inDays > 7) return false;
-                  return true;
-                }).toList();
-
-                otherUsers.sort((a, b) {
-                  final aOnline =
-                      a.isOnline && now.difference(a.lastSeen!).inMinutes < 2;
-                  final bOnline =
-                      b.isOnline && now.difference(b.lastSeen!).inMinutes < 2;
-                  if (aOnline && !bOnline) return -1;
-                  if (!aOnline && bOnline) return 1;
-                  return b.lastSeen!.compareTo(a.lastSeen!);
-                });
-
-                if (otherUsers.isEmpty) {
-                  return RefreshIndicator(
-                    onRefresh: () async => ref.refresh(allUsersProvider.future),
-                    child: ListView(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      children: const [
-                        SizedBox(height: 100),
-                        Center(
-                          child: Text(
-                            'No active users found',
-                            style: TextStyle(color: AppColors.textSecondary),
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                }
-
-                return RefreshIndicator(
-                  onRefresh: () async => ref.refresh(allUsersProvider.future),
-                  child: ListView.builder(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.only(top: 20, bottom: 78),
-                    itemCount: otherUsers.length,
-                    itemBuilder: (context, index) {
-                      return _buildUserTile(otherUsers[index], user, now);
-                    },
-                  ),
-                );
-              },
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, st) => RefreshIndicator(
-                onRefresh: () async => ref.refresh(allUsersProvider.future),
-                child: ListView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  children: [
-                    SizedBox(height: 100),
-                    Center(child: Text('Error: $e')),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
+    return ChatsTab(
+      usersAsync: usersAsync,
+      currentUser: currentUser,
+      user: user,
+      onPauseReels: _pauseActiveReel,
+      formatLastSeen: _formatLastSeen,
     );
   }
 
