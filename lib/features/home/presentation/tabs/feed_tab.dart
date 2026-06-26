@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:call_project/core/theme/app_colors.dart';
 import 'package:call_project/features/home/presentation/screens/home_screen.dart';
 
 class FeedTab extends StatelessWidget {
