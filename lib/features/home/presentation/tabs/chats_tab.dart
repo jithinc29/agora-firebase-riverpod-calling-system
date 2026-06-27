@@ -48,7 +48,7 @@ class ChatsTab extends ConsumerWidget {
       child: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(24, 24, 24, 12),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
             child: TextField(
               readOnly: true,
               onTap: () {
@@ -126,7 +126,7 @@ class ChatsTab extends ConsumerWidget {
                   onRefresh: () async => ref.refresh(allUsersProvider.future),
                   child: ListView.builder(
                     physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.only(top: 20, bottom: 78),
+                    padding: const EdgeInsets.only(top: 4, bottom: 78),
                     itemCount: otherUsers.length,
                     itemBuilder: (context, index) {
                       return _buildUserTile(
@@ -169,7 +169,7 @@ class ChatsTab extends ConsumerWidget {
     final followBack = otherUser.following.contains(currentUserObj.uid);
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+      margin: EdgeInsets.zero,
       decoration: BoxDecoration(
         color: Colors.transparent,
         borderRadius: BorderRadius.circular(20),
@@ -184,7 +184,8 @@ class ChatsTab extends ConsumerWidget {
             ),
           );
         },
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+        horizontalTitleGap: 12,
         leading: Stack(
           children: [
             Container(

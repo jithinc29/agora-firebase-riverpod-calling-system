@@ -96,22 +96,14 @@ class _ReelUploadScreenState extends State<ReelUploadScreen> {
       ),
       body: Stack(
         children: [
-          SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Video Preview Box
-                Container(
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Video Preview Box
+              Expanded(
+                child: Container(
                   width: double.infinity,
-                  height: widget.mode == 'story'
-                      ? MediaQuery.of(context).size.height * 0.8
-                      : MediaQuery.of(context).size.height * 0.5,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[900],
-                    border: Border(
-                      bottom: BorderSide(color: Colors.grey[800]!, width: 0.5),
-                    ),
-                  ),
+                  color: Colors.black,
                   child: _isInitialized
                       ? Center(
                           child: AspectRatio(
@@ -151,9 +143,10 @@ class _ReelUploadScreenState extends State<ReelUploadScreen> {
                           child: CircularProgressIndicator(color: Colors.white),
                         ),
                 ),
+              ),
 
-                // Caption box
-                if (widget.mode != 'story') ...[
+              // Caption box
+              if (widget.mode != 'story') ...[
                   Padding(
                     padding: const EdgeInsets.all(16.0),
                     child: Row(
@@ -216,7 +209,6 @@ class _ReelUploadScreenState extends State<ReelUploadScreen> {
                 ),
               ],
             ),
-          ),
 
           // Loading spinner
           if (_isUploading)
@@ -263,12 +255,15 @@ class _ReelUploadScreenState extends State<ReelUploadScreen> {
     });
 
     try {
+      // Sanitize the file path to avoid "Illegal percent encoding in URI" in third-party packages
+      File safeVideoFile = await VideoCompressionService.sanitizeVideoPath(widget.videoFile);
+
       // Compress video file client-side before uploading
-      File finalVideoFile = widget.videoFile;
+      File finalVideoFile = safeVideoFile;
       if (mounted) {
         finalVideoFile = await VideoCompressionService.compressVideo(
           context,
-          widget.videoFile,
+          safeVideoFile,
         );
       }
       final String fileName =

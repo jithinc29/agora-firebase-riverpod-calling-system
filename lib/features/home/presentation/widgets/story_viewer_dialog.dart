@@ -726,10 +726,10 @@ class StoryHeader extends StatelessWidget {
         final otherUsersUids = _buildSortedUids(grouped, currentUser.uid);
 
         return Container(
-          height: 110,
+          height: 90,
           padding: const EdgeInsets.only(
-            top: 14.0,
-            bottom: 6.0,
+            top: 8.0,
+            bottom: 0.0,
             left: 16.0,
             right: 16.0,
           ),

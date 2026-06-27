@@ -1,8 +1,22 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:video_compress/video_compress.dart';
 
 class VideoCompressionService {
+  /// Copies the video to a safe, space-free path to prevent URI encoding crashes 
+  /// ("Illegal percent encoding in URI") in third-party native packages.
+  static Future<File> sanitizeVideoPath(File videoFile) async {
+    try {
+      final tempDir = await getTemporaryDirectory();
+      final safePath = '${tempDir.path}/safe_video_${DateTime.now().millisecondsSinceEpoch}.mp4';
+      return await videoFile.copy(safePath);
+    } catch (e) {
+      debugPrint("Failed to sanitize video path: $e");
+      return videoFile;
+    }
+  }
+
   static Future<File> compressVideo(
     BuildContext context,
     File videoFile,

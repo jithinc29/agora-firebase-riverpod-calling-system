@@ -624,7 +624,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             _buildHeader(context, ref, user, 0),
-                            const SizedBox(height: 4),
                             Expanded(child: _buildFeedsTab(user)),
                           ],
                         ),
@@ -636,7 +635,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             _buildHeader(context, ref, user, 1),
-                            const SizedBox(height: 4),
                             Expanded(
                               child: _buildChatsTab(
                                 usersAsync,
@@ -656,7 +654,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             _buildHeader(context, ref, user, 3),
-                            const SizedBox(height: 4),
                             Expanded(child: ProfileScreen(isEmbedded: true)),
                           ],
                         ),
@@ -955,7 +952,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     }
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
+      padding: const EdgeInsets.only(left: 24.0, right: 24.0, top: 20.0, bottom: 8.0),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [

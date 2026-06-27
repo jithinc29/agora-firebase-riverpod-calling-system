@@ -138,12 +138,17 @@ class _PostCreatorCardState extends ConsumerState<PostCreatorCard> {
       if (_inlinePostMediaFile != null) {
         File fileToUpload = _inlinePostMediaFile!;
         if (_inlinePostMediaType == 'video') {
+          // Sanitize the file path to avoid "Illegal percent encoding in URI" in third-party packages
+          File safeVideoFile = await VideoCompressionService.sanitizeVideoPath(_inlinePostMediaFile!);
+
           // Compress video client-side before uploading
           if (context.mounted) {
             fileToUpload = await VideoCompressionService.compressVideo(
               context,
-              _inlinePostMediaFile!,
+              safeVideoFile,
             );
+          } else {
+            fileToUpload = safeVideoFile;
           }
 
           // Generate thumbnail
@@ -211,7 +216,7 @@ class _PostCreatorCardState extends ConsumerState<PostCreatorCard> {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      margin: const EdgeInsets.only(left: 10, right: 10, top: 8, bottom: 4),
+      margin: const EdgeInsets.only(left: 10, right: 10, top: 2, bottom: 4),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
