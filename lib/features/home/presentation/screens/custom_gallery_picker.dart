@@ -16,7 +16,7 @@ class CustomGalleryPickerScreen extends StatefulWidget {
 }
 
 class _CustomGalleryPickerScreenState extends State<CustomGalleryPickerScreen> {
-  List<AssetEntity> _mediaList = [];
+  final List<AssetEntity> _mediaList = [];
   AssetEntity? _selectedEntity;
   int _currentPage = 0;
   bool _isLoading = false;

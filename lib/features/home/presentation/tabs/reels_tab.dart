@@ -3,7 +3,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:call_project/features/home/presentation/widgets/reels_player_item.dart';
 import 'package:video_player/video_player.dart';
 import 'package:call_project/features/auth/models/user_model.dart';
-import 'package:call_project/features/home/presentation/screens/home_screen.dart';
 
 class ReelsTab extends StatelessWidget {
   final UserModel currentUser;

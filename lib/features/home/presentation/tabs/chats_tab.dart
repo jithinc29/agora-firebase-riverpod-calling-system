@@ -1,15 +1,13 @@
+import 'package:call_project/core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:call_project/features/auth/models/user_model.dart';
-import 'package:call_project/features/home/presentation/screens/search_bottom_sheet.dart'
-    hide AppColors;
-import 'package:call_project/features/home/presentation/screens/home_screen.dart';
+import 'package:call_project/features/home/presentation/screens/search_bottom_sheet.dart';
 
 // Import the user profile screen correctly based on its location
-import 'package:call_project/features/users/presentation/screens/user_profile_screen.dart'
-    hide AppColors;
+import 'package:call_project/features/users/presentation/screens/user_profile_screen.dart';
 import 'package:call_project/features/users/data/repository/user_repository.dart';
 
 class ChatsTab extends ConsumerWidget {
@@ -188,46 +186,19 @@ class ChatsTab extends ConsumerWidget {
         horizontalTitleGap: 12,
         leading: Stack(
           children: [
-            Container(
-              width: 50,
-              height: 50,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: const LinearGradient(
-                  colors: [AppColors.primary, AppColors.secondary],
-                ),
-                border: Border.all(color: Colors.white, width: 2),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.primary.withValues(alpha: 0.1),
-                    blurRadius: 10,
-                  ),
-                ],
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(28),
-                child: otherUser.photoUrl != null
-                    ? CachedNetworkImage(
-                        imageUrl: otherUser.photoUrl!,
-                        fit: BoxFit.cover,
-                        placeholder: (context, url) =>
-                            Container(color: Colors.black12),
-                        errorWidget: (context, url, error) =>
-                            const Icon(Icons.error),
-                      )
-                    : Center(
-                        child: Text(
-                          otherUser.displayName.isNotEmpty
-                              ? otherUser.displayName[0].toUpperCase()
-                              : '?',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 18,
-                          ),
-                        ),
-                      ),
-              ),
+            CircleAvatar(
+              radius: 25,
+              backgroundColor: AppColors.primary.withOpacity(0.1),
+              backgroundImage: otherUser.photoUrl != null && otherUser.photoUrl!.isNotEmpty
+                  ? CachedNetworkImageProvider(otherUser.photoUrl!)
+                  : null,
+              child: (otherUser.photoUrl == null || otherUser.photoUrl!.isEmpty)
+                  ? const Icon(
+                      Icons.person,
+                      color: AppColors.primary,
+                      size: 30,
+                    )
+                  : null,
             ),
             if (isActuallyOnline)
               Positioned(
@@ -264,20 +235,6 @@ class ChatsTab extends ConsumerWidget {
                 fontSize: 12,
               ),
             ),
-            if (isFollowing && followBack) ...[
-              const SizedBox(width: 8),
-              const Icon(Icons.verified, color: AppColors.primary, size: 14),
-            ] else if (isFollowing) ...[
-              const SizedBox(width: 8),
-              const Text(
-                '• Following',
-                style: TextStyle(
-                  color: AppColors.primary,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
           ],
         ),
         trailing: const Icon(

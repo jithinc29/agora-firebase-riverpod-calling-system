@@ -1,9 +1,8 @@
 import 'package:call_project/core/providers/refresh_provider.dart';
-import 'package:call_project/features/profile/presentation/screens/profile_screen.dart'
-    hide AppColors;
+import 'package:call_project/core/theme/app_colors.dart';
+import 'package:call_project/features/profile/presentation/screens/profile_screen.dart';
 import 'package:call_project/features/users/data/repository/user_repository.dart';
-import 'package:call_project/features/users/presentation/screens/user_profile_screen.dart'
-    hide AppColors;
+import 'package:call_project/features/users/presentation/screens/user_profile_screen.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -12,11 +11,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:video_player/video_player.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:visibility_detector/visibility_detector.dart';
 
 import 'package:call_project/features/auth/models/user_model.dart';
-import 'package:call_project/features/home/presentation/screens/home_screen.dart'
-    show AppColors, feedMuteProvider;
 import 'package:call_project/core/services/notification_service.dart';
 
 class ReelsPlayerItem extends ConsumerStatefulWidget {
@@ -567,69 +563,146 @@ class _ReelsPlayerItemState extends ConsumerState<ReelsPlayerItem> {
   void _confirmDeleteReel(BuildContext context, DocumentSnapshot reelDoc) {
     showDialog(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text(
-          'Delete Reel',
-          style: TextStyle(
-            color: AppColors.textPrimary,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        content: const Text(
-          'Are you sure you want to delete this reel permanently? This action cannot be undone.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: Text(
-              'Cancel',
-              style: TextStyle(color: AppColors.textSecondary),
-            ),
-          ),
-          TextButton(
-            onPressed: () async {
-              Navigator.pop(dialogContext);
-              try {
-                final data = reelDoc.data() as Map<String, dynamic>? ?? {};
-                final videoUrl = data['videoUrl'] as String?;
-                if (videoUrl != null && videoUrl.isNotEmpty) {
-                  try {
-                    final storageRef = FirebaseStorage.instance.refFromURL(
-                      videoUrl,
-                    );
-                    await storageRef.delete();
-                  } catch (e) {
-                    debugPrint('Failed to delete reel media: $e');
-                  }
-                }
-                final thumbnailUrl = data['thumbnail'] as String?;
-                if (thumbnailUrl != null && thumbnailUrl.isNotEmpty) {
-                  try {
-                    final storageRef = FirebaseStorage.instance.refFromURL(
-                      thumbnailUrl,
-                    );
-                    await storageRef.delete();
-                  } catch (e) {
-                    debugPrint('Failed to delete reel thumbnail: $e');
-                  }
-                }
-                await reelDoc.reference.delete();
-                ref.read(mediaRefreshProvider.notifier).state++;
-                TopNotificationService.showSuccess(context, 'Reel deleted');
-              } catch (e) {
-                TopNotificationService.showError(
-                  context,
-                  'Failed to delete reel: $e',
-                );
-              }
-            },
-            child: const Text(
-              'Delete',
-              style: TextStyle(color: AppColors.error),
-            ),
-          ),
-        ],
-      ),
+      builder: (dialogContext) {
+        bool isDeleting = false;
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return Dialog(
+              backgroundColor: AppColors.background,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+                    child: Column(
+                      children: [
+                        Text(
+                          'Delete Reel',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                        SizedBox(height: 12),
+                        Text(
+                          'Are you sure you want to delete this reel permanently? This action cannot be undone.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Divider(height: 1, color: Colors.grey.shade300),
+                  InkWell(
+                    onTap: isDeleting
+                        ? null
+                        : () async {
+                            setState(() {
+                              isDeleting = true;
+                            });
+                            try {
+                              final data =
+                                  reelDoc.data() as Map<String, dynamic>? ?? {};
+                              final videoUrl = data['videoUrl'] as String?;
+                              if (videoUrl != null && videoUrl.isNotEmpty) {
+                                try {
+                                  final storageRef = FirebaseStorage.instance
+                                      .refFromURL(videoUrl);
+                                  await storageRef.delete();
+                                } catch (e) {
+                                  debugPrint('Failed to delete reel media: $e');
+                                }
+                              }
+                              final thumbnailUrl = data['thumbnail'] as String?;
+                              if (thumbnailUrl != null &&
+                                  thumbnailUrl.isNotEmpty) {
+                                try {
+                                  final storageRef = FirebaseStorage.instance
+                                      .refFromURL(thumbnailUrl);
+                                  await storageRef.delete();
+                                } catch (e) {
+                                  debugPrint(
+                                    'Failed to delete reel thumbnail: $e',
+                                  );
+                                }
+                              }
+                              await reelDoc.reference.delete();
+                              ref.read(mediaRefreshProvider.notifier).state++;
+                              if (context.mounted) {
+                                Navigator.pop(dialogContext);
+                                TopNotificationService.showSuccess(
+                                  context,
+                                  'Reel deleted',
+                                );
+                              }
+                            } catch (e) {
+                              if (context.mounted) {
+                                setState(() {
+                                  isDeleting = false;
+                                });
+                                TopNotificationService.showError(
+                                  context,
+                                  'Failed to delete reel: $e',
+                                );
+                              }
+                            }
+                          },
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      alignment: Alignment.center,
+                      child: isDeleting
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: AppColors.error,
+                              ),
+                            )
+                          : const Text(
+                              'Delete',
+                              style: TextStyle(
+                                color: AppColors.error,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15,
+                              ),
+                            ),
+                    ),
+                  ),
+                  Divider(height: 1, color: Colors.grey.shade300),
+                  InkWell(
+                    onTap: isDeleting
+                        ? null
+                        : () => Navigator.pop(dialogContext),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      alignment: Alignment.center,
+                      child: Text(
+                        'Cancel',
+                        style: TextStyle(
+                          color: isDeleting
+                              ? Colors.grey
+                              : AppColors.textPrimary,
+                          fontSize: 15,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }

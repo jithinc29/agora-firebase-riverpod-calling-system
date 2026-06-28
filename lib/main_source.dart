@@ -1,3 +1,4 @@
+import 'package:call_project/core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -143,7 +144,11 @@ class HomeScreen extends ConsumerWidget {
                   ),
                   leading: CircleAvatar(
                     backgroundColor: user.isOnline ? Colors.green : Colors.grey,
-                    child: Text(user.displayName[0].toUpperCase()),
+                    child: const Icon(
+                      Icons.person,
+                      color: AppColors.primary,
+                      size: 30,
+                    ),
                   ),
                   title: Text(
                     user.displayName,

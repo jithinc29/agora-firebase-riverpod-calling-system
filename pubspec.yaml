@@ -43,18 +43,16 @@ dependencies:
   firebase_auth: ^6.4.0
   firebase_messaging: ^16.2.0
   flutter_callkit_incoming: ^3.0.0
-  flutter_local_notifications: ^21.0.0
+
   cloud_functions: ^6.2.0
   uuid: ^4.5.3
   http: ^1.6.0
-  shared_preferences: ^2.5.5
+
   image_picker: ^1.2.2
   firebase_storage: ^13.3.0
   cached_network_image: ^3.4.1
   intl: ^0.20.2
-  record: ^6.2.0
-  path_provider: ^2.1.5
-  audio_waveforms: ^2.0.2
+
   just_audio: ^0.10.5
   google_fonts: ^8.1.0
   video_player: ^2.11.1
@@ -62,8 +60,7 @@ dependencies:
   pro_image_editor: 12.1.0
   flutter_cache_manager: ^3.4.1
   visibility_detector: ^0.4.0+2
-  pro_video_editor: ^1.19.1
-  image_cropper: ^12.2.1
+
   shimmer: ^3.0.0
   photo_manager: ^3.9.0
   photo_manager_image_provider: ^2.2.0

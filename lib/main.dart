@@ -1,19 +1,15 @@
-import 'dart:async';
 import 'package:call_project/core/navigation/navigation_service.dart';
 import 'package:call_project/core/services/notification_service.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:permission_handler/permission_handler.dart';
 
 import 'firebase_options.dart';
 import 'features/auth/screens/login_screen.dart';
 import 'core/providers/firebase_providers.dart';
-import 'features/auth/repository/auth_repository.dart';
 
 import 'features/notifications/data/repositories/notification_repository.dart';
 import 'package:flutter_callkit_incoming/flutter_callkit_incoming.dart';

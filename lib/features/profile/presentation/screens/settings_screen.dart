@@ -1,6 +1,7 @@
+import 'package:call_project/core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:call_project/features/profile/presentation/screens/profile_screen.dart'; // For AppColors
+// For AppColors
 import 'package:call_project/features/users/presentation/screens/block_list_screen.dart';
 import 'package:call_project/features/auth/controllers/auth_controller.dart';
 

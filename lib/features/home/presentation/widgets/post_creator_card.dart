@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:call_project/core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
@@ -8,15 +9,13 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:video_compress/video_compress.dart';
 
 import 'package:call_project/features/auth/models/user_model.dart';
-import 'package:call_project/features/home/presentation/screens/home_screen.dart'
-    show AppColors;
 import 'package:photo_manager/photo_manager.dart';
 import 'package:call_project/features/home/presentation/utils/video_compression_service.dart';
 import 'package:call_project/features/home/presentation/screens/custom_gallery_picker.dart';
 import 'package:call_project/features/home/presentation/screens/image_editor_screen.dart';
 import 'package:call_project/features/home/presentation/screens/reel_upload_screen.dart';
-import 'package:call_project/core/providers/refresh_provider.dart';
 import 'package:call_project/core/services/notification_service.dart';
+import 'package:call_project/core/widgets/custom_avatar.dart';
 
 class PostCreatorCard extends ConsumerStatefulWidget {
   final UserModel currentUser;
@@ -139,7 +138,9 @@ class _PostCreatorCardState extends ConsumerState<PostCreatorCard> {
         File fileToUpload = _inlinePostMediaFile!;
         if (_inlinePostMediaType == 'video') {
           // Sanitize the file path to avoid "Illegal percent encoding in URI" in third-party packages
-          File safeVideoFile = await VideoCompressionService.sanitizeVideoPath(_inlinePostMediaFile!);
+          File safeVideoFile = await VideoCompressionService.sanitizeVideoPath(
+            _inlinePostMediaFile!,
+          );
 
           // Compress video client-side before uploading
           if (context.mounted) {
@@ -227,19 +228,10 @@ class _PostCreatorCardState extends ConsumerState<PostCreatorCard> {
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              CircleAvatar(
-                radius: 16,
-                backgroundImage: widget.currentUser.photoUrl != null
-                    ? CachedNetworkImageProvider(widget.currentUser.photoUrl!)
-                    : null,
-                child: widget.currentUser.photoUrl == null
-                    ? Text(
-                        widget.currentUser.displayName.isNotEmpty
-                            ? widget.currentUser.displayName[0].toUpperCase()
-                            : '?',
-                      )
-                    : null,
-              ),
+              CustomAvatar(
+radius: 16,
+photoUrl: widget.currentUser.photoUrl,
+),
               const SizedBox(width: 10),
               Expanded(
                 child: TextField(

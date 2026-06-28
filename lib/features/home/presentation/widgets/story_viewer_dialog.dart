@@ -1,6 +1,5 @@
-import 'dart:async';
+import 'package:call_project/core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/legacy.dart';
@@ -10,10 +9,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import 'package:call_project/core/utils/time_utils.dart';
 import 'package:call_project/features/auth/models/user_model.dart';
-import 'package:call_project/features/home/presentation/screens/home_screen.dart'
-    show AppColors;
-import 'package:call_project/features/home/presentation/providers/home_providers.dart';
 import 'package:call_project/core/services/notification_service.dart';
+import 'package:call_project/core/widgets/custom_avatar.dart';
 
 class StoryViewerDialog extends StatefulWidget {
   final List<Map<String, dynamic>> stories;
@@ -420,20 +417,10 @@ class _StoryViewerDialogState extends State<StoryViewerDialog>
                   RepaintBoundary(
                     child: Row(
                       children: [
-                        CircleAvatar(
-                          radius: 18,
-                          backgroundImage:
-                              photoUrl != null && photoUrl.isNotEmpty
-                              ? CachedNetworkImageProvider(photoUrl)
-                              : null,
-                          child: (photoUrl == null || photoUrl.isEmpty)
-                              ? Text(
-                                  displayName.isNotEmpty
-                                      ? displayName[0].toUpperCase()
-                                      : '?',
-                                )
-                              : null,
-                        ),
+                        CustomAvatar(
+radius: 18,
+photoUrl: photoUrl,
+),
                         const SizedBox(width: 10),
                         Expanded(
                           child: Row(
@@ -716,8 +703,9 @@ class StoryHeader extends StatelessWidget {
 
           if (timestamp > 0 && timestamp < cutoff) continue;
           if (uid.isEmpty) continue;
-          if (uid != currentUser.uid && !currentUser.following.contains(uid))
+          if (uid != currentUser.uid && !currentUser.following.contains(uid)) {
             continue;
+          }
           if (!grouped.containsKey(uid)) grouped[uid] = [];
           grouped[uid]!.add({'id': doc.id, ...data});
         }
@@ -789,28 +777,10 @@ class StoryHeader extends StatelessWidget {
                                         color: Colors.white,
                                         shape: BoxShape.circle,
                                       ),
-                                      child: CircleAvatar(
-                                        radius: 22,
-                                        backgroundImage:
-                                            currentUser.photoUrl != null &&
-                                                currentUser.photoUrl!.isNotEmpty
-                                            ? CachedNetworkImageProvider(
-                                                currentUser.photoUrl!,
-                                              )
-                                            : null,
-                                        child:
-                                            (currentUser.photoUrl == null ||
-                                                currentUser.photoUrl!.isEmpty)
-                                            ? Text(
-                                                currentUser
-                                                        .displayName
-                                                        .isNotEmpty
-                                                    ? currentUser.displayName[0]
-                                                          .toUpperCase()
-                                                    : '?',
-                                              )
-                                            : null,
-                                      ),
+                                      child: CustomAvatar(
+radius: 22,
+photoUrl: currentUser.photoUrl,
+),
                                     ),
                                   ),
                                   Positioned(
@@ -899,20 +869,10 @@ class StoryHeader extends StatelessWidget {
                                   color: Colors.white,
                                   shape: BoxShape.circle,
                                 ),
-                                child: CircleAvatar(
-                                  radius: 22,
-                                  backgroundImage:
-                                      photoUrl != null && photoUrl.isNotEmpty
-                                      ? CachedNetworkImageProvider(photoUrl)
-                                      : null,
-                                  child: (photoUrl == null || photoUrl.isEmpty)
-                                      ? Text(
-                                          displayName.isNotEmpty
-                                              ? displayName[0].toUpperCase()
-                                              : '?',
-                                        )
-                                      : null,
-                                ),
+                                child: CustomAvatar(
+radius: 22,
+photoUrl: photoUrl,
+),
                               ),
                             ),
                             const SizedBox(height: 6),

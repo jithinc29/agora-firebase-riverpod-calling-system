@@ -1,11 +1,11 @@
 import 'package:call_project/core/services/notification_service.dart';
+import 'package:call_project/core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:call_project/features/auth/models/user_model.dart';
 import 'package:call_project/core/utils/time_utils.dart';
-import 'package:call_project/features/home/presentation/screens/home_screen.dart'
-    show AppColors;
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:call_project/core/widgets/custom_avatar.dart';
 
 class CommentsBottomSheetHelper {
   static void show(
@@ -326,23 +326,10 @@ class CommentsBottomSheetHelper {
                       ),
                       child: Row(
                         children: [
-                          CircleAvatar(
-                            radius: 14,
-                            backgroundImage: currentUser.photoUrl != null
-                                ? CachedNetworkImageProvider(
-                                    currentUser.photoUrl!,
-                                  )
-                                : null,
-                            child: currentUser.photoUrl == null
-                                ? Text(
-                                    currentUser.displayName.isNotEmpty
-                                        ? currentUser.displayName[0]
-                                              .toUpperCase()
-                                        : '?',
-                                    style: const TextStyle(fontSize: 10),
-                                  )
-                                : null,
-                          ),
+                          CustomAvatar(
+radius: 14,
+photoUrl: currentUser.photoUrl,
+),
                           const SizedBox(width: 8),
                           Expanded(
                             child: TextField(
@@ -551,20 +538,10 @@ class CommentsBottomSheetHelper {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            CircleAvatar(
-              radius: isReply ? 12 : 14,
-              backgroundImage: photoUrl != null
-                  ? CachedNetworkImageProvider(photoUrl)
-                  : null,
-              child: photoUrl == null
-                  ? Text(
-                      displayName.isNotEmpty
-                          ? displayName[0].toUpperCase()
-                          : '?',
-                      style: TextStyle(fontSize: isReply ? 8 : 10),
-                    )
-                  : null,
-            ),
+            CustomAvatar(
+radius: isReply ? 12 : 14,
+photoUrl: photoUrl,
+),
             const SizedBox(width: 8),
             Expanded(
               child: Column(
@@ -583,7 +560,7 @@ class CommentsBottomSheetHelper {
                         ),
                         if (match != null) ...[
                           TextSpan(
-                            text: match.group(1)! + ' ',
+                            text: '${match.group(1)!} ',
                             style: const TextStyle(color: Colors.blue),
                           ),
                           TextSpan(text: text.substring(match.end)),

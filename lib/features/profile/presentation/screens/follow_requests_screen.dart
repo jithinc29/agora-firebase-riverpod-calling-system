@@ -1,10 +1,12 @@
+import 'package:call_project/core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:call_project/features/users/data/repository/user_repository.dart';
-import 'package:call_project/features/profile/presentation/screens/profile_screen.dart'; // For AppColors and userDetailsProvider
+// For AppColors and userDetailsProvider
 import 'package:call_project/features/auth/repository/auth_repository.dart'; // For currentUserDataProvider
+import 'package:call_project/core/widgets/custom_avatar.dart';
 
 class FollowRequestsScreen extends ConsumerWidget {
   final String currentUserId;
@@ -23,8 +25,9 @@ class FollowRequestsScreen extends ConsumerWidget {
 
     return userAsync.when(
       data: (currentUser) {
-        if (currentUser == null)
+        if (currentUser == null) {
           return const Scaffold(body: Center(child: Text('User not found')));
+        }
         final reactivePendingRequests = currentUser.pendingFollowRequests;
 
         return allUsersAsync.when(
@@ -157,26 +160,10 @@ class FollowRequestsScreen extends ConsumerWidget {
                   horizontal: 4,
                   vertical: 0,
                 ),
-                leading: CircleAvatar(
-                  radius: 26,
-                  backgroundImage:
-                      user.photoUrl != null && user.photoUrl!.isNotEmpty
-                      ? CachedNetworkImageProvider(user.photoUrl!)
-                      : null,
-                  backgroundColor: AppColors.primary.withValues(alpha: 0.1),
-                  child: (user.photoUrl == null || user.photoUrl!.isEmpty)
-                      ? Text(
-                          user.displayName.isNotEmpty
-                              ? user.displayName[0].toUpperCase()
-                              : '?',
-                          style: const TextStyle(
-                            color: AppColors.primary,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 18,
-                          ),
-                        )
-                      : null,
-                ),
+                leading: CustomAvatar(
+radius: 26,
+photoUrl: user.photoUrl,
+),
                 title: Text(
                   user.displayName,
                   style: const TextStyle(

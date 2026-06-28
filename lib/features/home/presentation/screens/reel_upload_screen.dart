@@ -1,10 +1,11 @@
 import 'dart:io';
+import 'package:call_project/core/theme/app_colors.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 import 'package:call_project/features/auth/models/user_model.dart';
-import 'package:call_project/features/home/presentation/screens/home_screen.dart'; // For AppColors
+// For AppColors
 import 'package:call_project/core/services/notification_service.dart';
 import 'package:call_project/features/home/presentation/utils/video_compression_service.dart';
 import 'package:video_compress/video_compress.dart';
@@ -147,68 +148,67 @@ class _ReelUploadScreenState extends State<ReelUploadScreen> {
 
               // Caption box
               if (widget.mode != 'story') ...[
-                  Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        CircleAvatar(
-                          radius: 18,
-                          backgroundImage: widget.currentUser.photoUrl != null
-                              ? NetworkImage(widget.currentUser.photoUrl!)
-                              : null,
-                          child: widget.currentUser.photoUrl == null
-                              ? Text(
-                                  widget.currentUser.displayName.isNotEmpty
-                                      ? widget.currentUser.displayName[0]
-                                            .toUpperCase()
-                                      : '?',
-                                )
-                              : null,
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: TextField(
-                            controller: _captionController,
-                            maxLines: 4,
-                            style: const TextStyle(
-                              color: Colors.white,
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      CircleAvatar(
+                        radius: 18,
+                        backgroundImage: widget.currentUser.photoUrl != null
+                            ? NetworkImage(widget.currentUser.photoUrl!)
+                            : null,
+                        child: widget.currentUser.photoUrl == null
+                            ? const Icon(
+Icons.person,
+color: AppColors.primary,
+size: 30,
+)
+                            : null,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextField(
+                          controller: _captionController,
+                          maxLines: 4,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                          ),
+                          decoration: InputDecoration(
+                            hintText: widget.mode == 'reel'
+                                ? "Write a caption for your Reel..."
+                                : "Write a caption for your video...",
+                            hintStyle: const TextStyle(
+                              color: Colors.white30,
                               fontSize: 14,
                             ),
-                            decoration: InputDecoration(
-                              hintText: widget.mode == 'reel'
-                                  ? "Write a caption for your Reel..."
-                                  : "Write a caption for your video...",
-                              hintStyle: const TextStyle(
-                                color: Colors.white30,
-                                fontSize: 14,
-                              ),
-                              border: InputBorder.none,
-                            ),
+                            border: InputBorder.none,
                           ),
                         ),
-                      ],
-                    ),
-                  ),
-                  const Divider(color: Colors.white12, height: 1),
-                ],
-
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
-                  child: Text(
-                    widget.mode == 'story'
-                        ? 'Your video will be shared as a story for 24 hours.'
-                        : widget.mode == 'reel'
-                        ? 'Your Reel will be shared to the Reels tab and can be discovered by anyone.'
-                        : 'Your video will be shared to the Home feed.',
-                    style: const TextStyle(color: Colors.white38, fontSize: 11),
+                      ),
+                    ],
                   ),
                 ),
+                const Divider(color: Colors.white12, height: 1),
               ],
-            ),
+
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+                child: Text(
+                  widget.mode == 'story'
+                      ? 'Your video will be shared as a story for 24 hours.'
+                      : widget.mode == 'reel'
+                      ? 'Your Reel will be shared to the Reels tab and can be discovered by anyone.'
+                      : 'Your video will be shared to the Home feed.',
+                  style: const TextStyle(color: Colors.white38, fontSize: 11),
+                ),
+              ),
+            ],
+          ),
 
           // Loading spinner
           if (_isUploading)
@@ -256,7 +256,9 @@ class _ReelUploadScreenState extends State<ReelUploadScreen> {
 
     try {
       // Sanitize the file path to avoid "Illegal percent encoding in URI" in third-party packages
-      File safeVideoFile = await VideoCompressionService.sanitizeVideoPath(widget.videoFile);
+      File safeVideoFile = await VideoCompressionService.sanitizeVideoPath(
+        widget.videoFile,
+      );
 
       // Compress video file client-side before uploading
       File finalVideoFile = safeVideoFile;

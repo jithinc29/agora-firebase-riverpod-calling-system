@@ -15,19 +15,8 @@ import 'package:call_project/features/users/data/repository/user_repository.dart
 import 'package:call_project/core/providers/firebase_providers.dart';
 import 'package:call_project/core/services/notification_service.dart';
 import 'package:call_project/features/users/presentation/screens/follow_list_screen.dart';
-import 'package:call_project/features/users/presentation/screens/block_list_screen.dart';
 import 'package:call_project/features/profile/presentation/screens/follow_requests_screen.dart';
-import 'package:call_project/features/profile/presentation/screens/settings_screen.dart';
-
-class AppColors {
-  static const primary = Color(0xFF6366F1); // Indigo
-  static const secondary = Color(0xFFA855F7); // Purple
-  static const background = Color(0xFFF8FAFC); // Slate Light
-  static const success = Color(0xFF10B981); // Emerald
-  static const error = Color(0xFFEF4444); // Rose
-  static const textPrimary = Color(0xFF0F172A); // Midnight
-  static const textSecondary = Color(0xFF64748B); // Slate Muted
-}
+import 'package:call_project/core/theme/app_colors.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   final bool isEmbedded;
@@ -374,8 +363,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   },
                   body: FutureBuilder<Map<String, List<Map<String, dynamic>>>>(
                     future:
-                        _mediaFuture
-                            as Future<Map<String, List<Map<String, dynamic>>>>?,
+                        _mediaFuture,
                     builder: (context, snapshot) {
                       if (snapshot.connectionState == ConnectionState.waiting) {
                         return const Center(child: CircularProgressIndicator());
@@ -485,16 +473,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                   alpha: 0.05,
                                 ),
                                 child: Center(
-                                  child: Text(
-                                    user.displayName.isNotEmpty
-                                        ? user.displayName[0].toUpperCase()
-                                        : '?',
-                                    style: const TextStyle(
-                                      fontSize: 26,
-                                      color: AppColors.primary,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
+                                  child: const Icon(
+Icons.person,
+color: AppColors.primary,
+size: 30,
+),
                                 ),
                               ),
                               errorWidget: (context, url, error) =>
@@ -503,16 +486,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           : Container(
                               color: AppColors.primary.withValues(alpha: 0.05),
                               child: Center(
-                                child: Text(
-                                  user.displayName.isNotEmpty
-                                      ? user.displayName[0].toUpperCase()
-                                      : '?',
-                                  style: const TextStyle(
-                                    fontSize: 26,
-                                    color: AppColors.primary,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
+                                child: const Icon(
+Icons.person,
+color: AppColors.primary,
+size: 30,
+),
                               ),
                             ),
                     ),
@@ -523,7 +501,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    _buildStatColumn('Posts', '${_postsDocs.length}'),
+                    FutureBuilder(
+                      future: _mediaFuture,
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState == ConnectionState.waiting) {
+                          return _buildStatColumn('Posts', '-');
+                        }
+                        return _buildStatColumn('Posts', '${_postsDocs.length}');
+                      },
+                    ),
                     _buildStatColumn(
                       'Followers',
                       '${activeFollowers.length}',
@@ -769,17 +755,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                             fit: BoxFit.cover,
                                           )
                                         : Center(
-                                            child: Text(
-                                              user.displayName.isNotEmpty
-                                                  ? user.displayName[0]
-                                                        .toUpperCase()
-                                                  : '?',
-                                              style: const TextStyle(
-                                                fontSize: 32,
-                                                color: AppColors.primary,
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                            ),
+                                            child: const Icon(
+Icons.person,
+color: AppColors.primary,
+size: 30,
+),
                                           )),
                             ),
                           ),
@@ -945,10 +925,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final postsDocs = results[0].docs.toList();
     postsDocs.sort((a, b) {
       final aTime = parseTimestamp(
-        (a.data() as Map<String, dynamic>)['timestamp'],
+        (a.data())['timestamp'],
       );
       final bTime = parseTimestamp(
-        (b.data() as Map<String, dynamic>)['timestamp'],
+        (b.data())['timestamp'],
       );
       return bTime.compareTo(aTime);
     });
@@ -960,7 +940,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
     for (var doc in postsDocs) {
       final Map<String, dynamic> data = Map<String, dynamic>.from(
-        doc.data() as Map<String, dynamic>,
+        doc.data(),
       );
       if (data['type'] == 'image' || data['type'] == 'video') {
         data['id'] = doc.id;
@@ -972,7 +952,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
     for (var doc in reelsDocs) {
       final Map<String, dynamic> data = Map<String, dynamic>.from(
-        doc.data() as Map<String, dynamic>,
+        doc.data(),
       );
       data['id'] = doc.id;
       data['doc'] = doc;

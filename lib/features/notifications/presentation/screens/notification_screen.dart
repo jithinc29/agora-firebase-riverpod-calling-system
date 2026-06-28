@@ -12,8 +12,9 @@ class NotificationScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(firebaseAuthProvider).currentUser;
-    if (user == null)
+    if (user == null) {
       return const Scaffold(body: Center(child: Text('Please login')));
+    }
 
     final notificationsAsync = ref.watch(notificationsProvider(user.uid));
     final unreadCount =

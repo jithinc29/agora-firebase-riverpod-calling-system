@@ -4,25 +4,12 @@ import 'package:agora_rtc_engine/agora_rtc_engine.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:flutter_callkit_incoming/flutter_callkit_incoming.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:call_project/features/call/presentation/controllers/call_controller.dart';
 import 'package:call_project/features/auth/models/user_model.dart';
 import 'package:call_project/features/call/data/repositories/call_repository.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:just_audio/just_audio.dart';
-
-// Unified Design System Colors (Synced across app)
-class AppColors {
-  static const primary = Color(0xFF6366F1); // Indigo
-  static const secondary = Color(0xFFA855F7); // Purple
-  static const background = Color(0xFFF8FAFC); // Slate Light
-  static const darkSurface = Color(0xFF0F172A); // Midnight
-  static const success = Color(0xFF10B981); // Emerald
-  static const error = Color(0xFFEF4444); // Rose
-  static const textPrimary = Color(0xFF1E293B);
-  static const textSecondary = Color(0xFF64748B);
-}
+import 'package:call_project/core/theme/app_colors.dart';
 
 class CallScreen extends ConsumerStatefulWidget {
   final String channelId;
@@ -383,14 +370,11 @@ class _CallScreenState extends ConsumerState<CallScreen>
                     : Container(
                         color: AppColors.primary,
                         child: Center(
-                          child: Text(
-                            widget.guestUser.displayName[0].toUpperCase(),
-                            style: const TextStyle(
-                              fontSize: 64,
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
+                          child: const Icon(
+Icons.person,
+color: AppColors.primary,
+size: 30,
+),
                         ),
                       ),
               ),

@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:call_project/core/utils/time_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,7 +6,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:call_project/features/auth/models/user_model.dart';
 import 'package:call_project/features/users/data/repository/user_repository.dart';
 import 'package:call_project/features/auth/repository/auth_repository.dart';
-import 'package:call_project/core/providers/firebase_providers.dart';
 import 'package:call_project/features/chat/presentation/screens/chat_screen.dart';
 import 'package:call_project/features/chat/data/repository/chat_repository.dart';
 import 'package:call_project/features/call/presentation/controllers/call_controller.dart';
@@ -15,16 +13,7 @@ import 'package:call_project/features/call/presentation/screens/call_screen.dart
 import 'package:call_project/core/navigation/navigation_service.dart';
 import 'package:call_project/features/users/presentation/screens/follow_list_screen.dart';
 import 'package:call_project/features/profile/presentation/screens/user_posts_screen.dart';
-
-class AppColors {
-  static const primary = Color(0xFF6366F1);
-  static const secondary = Color(0xFFA855F7);
-  static const background = Color(0xFFF8FAFC);
-  static const success = Color(0xFF10B981);
-  static const error = Color(0xFFEF4444);
-  static const textPrimary = Color(0xFF0F172A);
-  static const textSecondary = Color(0xFF64748B);
-}
+import 'package:call_project/core/theme/app_colors.dart';
 
 class UserProfileScreen extends ConsumerStatefulWidget {
   final UserModel user;
@@ -50,10 +39,10 @@ final userProfileMediaProvider =
       final postsDocs = results[0].docs.toList();
       postsDocs.sort((a, b) {
         final aTime = parseTimestamp(
-          (a.data() as Map<String, dynamic>)['timestamp'],
+          (a.data())['timestamp'],
         );
         final bTime = parseTimestamp(
-          (b.data() as Map<String, dynamic>)['timestamp'],
+          (b.data())['timestamp'],
         );
         return bTime.compareTo(aTime);
       });
@@ -63,7 +52,7 @@ final userProfileMediaProvider =
       final List<Map<String, dynamic>> allMedia = [];
 
       for (var doc in postsDocs) {
-        final data = doc.data() as Map<String, dynamic>;
+        final data = doc.data();
         if (data['type'] == 'image' || data['type'] == 'video') {
           data['id'] = doc.id;
           data['doc'] = doc;
@@ -73,7 +62,7 @@ final userProfileMediaProvider =
       }
 
       for (var doc in reelsDocs) {
-        final data = doc.data() as Map<String, dynamic>;
+        final data = doc.data();
         data['id'] = doc.id;
         data['doc'] = doc;
         data['source'] = 'reel';
@@ -540,14 +529,11 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
                             shape: BoxShape.circle,
                           ),
                           child: Center(
-                            child: Text(
-                              targetUser.displayName[0].toUpperCase(),
-                              style: const TextStyle(
-                                fontSize: 26,
-                                color: AppColors.primary,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
+                            child: const Icon(
+Icons.person,
+color: AppColors.primary,
+size: 30,
+),
                           ),
                         )
                       : null,
@@ -562,7 +548,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
                       mediaAsync.when(
                         data: (data) => '${data['postsCount']}',
                         loading: () => '-',
-                        error: (_, __) => '0',
+                        error: (_, _) => '0',
                       ),
                     ),
                     _buildStatColumn(
@@ -924,7 +910,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
             )
           : const SizedBox.shrink(),
       loading: () => const SizedBox.shrink(),
-      error: (_, __) => const SizedBox.shrink(),
+      error: (_, _) => const SizedBox.shrink(),
     );
   }
 
@@ -939,39 +925,78 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
     if (isFollowing) {
       showDialog(
         context: context,
-        builder: (context) => AlertDialog(
+        builder: (context) => Dialog(
+          backgroundColor: AppColors.background,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(24),
+            borderRadius: BorderRadius.circular(16),
           ),
-          title: const Text('Unfollow User?'),
-          content: const Text(
-            'You will no longer be able to message or call this user private until you follow each other again.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text(
-                'Cancel',
-                style: TextStyle(color: AppColors.textSecondary),
-              ),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                ref
-                    .read(userRepositoryProvider)
-                    .unfollowUser(currentUid, targetUid);
-                Navigator.pop(context);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.error,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+                child: Column(
+                  children: [
+                    Text(
+                      'Unfollow User?',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    SizedBox(height: 12),
+                    Text(
+                      'You will no longer be able to message or call this user private until you follow each other again.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              child: const Text('Unfollow'),
-            ),
-          ],
+              Divider(height: 1, color: Colors.grey.shade300),
+              InkWell(
+                onTap: () {
+                  ref
+                      .read(userRepositoryProvider)
+                      .unfollowUser(currentUid, targetUid);
+                  Navigator.pop(context);
+                },
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  alignment: Alignment.center,
+                  child: const Text(
+                    'Unfollow',
+                    style: TextStyle(
+                      color: AppColors.error,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                    ),
+                  ),
+                ),
+              ),
+              Divider(height: 1, color: Colors.grey.shade300),
+              InkWell(
+                onTap: () => Navigator.pop(context),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  alignment: Alignment.center,
+                  child: const Text(
+                    'Cancel',
+                    style: TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 15,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       );
       return;
@@ -1020,7 +1045,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
     Navigator.push(
       context,
       PageRouteBuilder(
-        pageBuilder: (_, __, ___) => CallScreen(
+        pageBuilder: (_, _, _) => CallScreen(
           channelId: channelId,
           guestUser: targetUser,
           isAudioCall: isAudioCall,

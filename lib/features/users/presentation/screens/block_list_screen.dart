@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:call_project/features/users/data/repository/user_repository.dart';
-import 'package:call_project/core/providers/firebase_providers.dart';
 
 class BlockListScreen extends ConsumerWidget {
   const BlockListScreen({super.key});

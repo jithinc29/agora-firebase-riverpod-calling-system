@@ -1,5 +1,4 @@
 import 'package:agora_rtc_engine/agora_rtc_engine.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_callkit_incoming/flutter_callkit_incoming.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -7,8 +6,6 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:call_project/core/config/agora_config.dart';
 import 'package:call_project/features/call/domain/entities/call_entity.dart';
 import 'package:call_project/features/call/data/repositories/call_repository.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
 
 part 'call_controller.g.dart';
 
@@ -100,18 +97,6 @@ class CallController extends _$CallController {
       channelId: generatedChannelId,
       isAudioCall: isAudioCall,
     );
-
-    final payload = {
-      'callerId': senderId,
-      'callerName': senderName,
-      'receiverId': receiverId,
-      'receiverName': receiverName ?? 'Unknown',
-      'channelId': generatedChannelId,
-      'status': 'dialing',
-      'isAudioCall': isAudioCall.toString(),
-      'receiverToken': receiverToken,
-      'createdAt': DateTime.now().millisecondsSinceEpoch.toString(),
-    };
 
     try {
       // 1. SIGNAL FIRST: Write to Firestore (and Vercel/FCM)

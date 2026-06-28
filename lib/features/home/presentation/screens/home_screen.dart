@@ -31,18 +31,7 @@ import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:call_project/features/home/presentation/screens/custom_gallery_picker.dart';
 import 'package:photo_manager/photo_manager.dart';
 import 'package:call_project/features/profile/presentation/screens/settings_screen.dart';
-
-// Unified Design System Colors (Synced across app)
-class AppColors {
-  static const primary = Color(0xFF6366F1); // Indigo
-  static const secondary = Color(0xFFA855F7); // Purple
-  static const background = Color(0xFFF8FAFC); // Slate Light
-  static const darkSurface = Color(0xFF0F172A); // Midnight
-  static const success = Color(0xFF10B981); // Emerald
-  static const error = Color(0xFFEF4444); // Rose
-  static const textPrimary = Color(0xFF1E293B);
-  static const textSecondary = Color(0xFF64748B);
-}
+import 'package:call_project/core/theme/app_colors.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -302,9 +291,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       _reelsControllers.clear();
       _reelsDocs.clear();
       _activeReelIndex = 0;
-      if (_reelsPageController.hasClients) {
-        _reelsPageController.jumpToPage(0);
-      }
+      _reelsPageController.dispose();
+      _reelsPageController = PageController(initialPage: 0);
     }
 
     if (_isLoadingReels || !_hasMoreReels) return;
@@ -860,44 +848,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             data['displayName'] ?? data['creatorName'] ?? 'Anonymous',
         'creatorAvatar': data['photoUrl'] ?? data['creatorAvatar'] ?? '',
       });
-    }
-    if (reels.isEmpty && !_isLoadingReels) {
-      reels.addAll([
-        {
-          'videoUrl':
-              'https://flutter.github.io/assets-for-api-docs/assets/videos/bee.mp4',
-          'thumbnail': '',
-          'caption':
-              'Bees working hard! Nature is beautiful. #nature #bees #macro',
-          'creatorName': '@nature_observer',
-          'creatorAvatar': '',
-        },
-        {
-          'videoUrl':
-              'https://flutter.github.io/assets-for-api-docs/assets/videos/butterfly.mp4',
-          'thumbnail': '',
-          'caption':
-              'Elegant butterfly taking off! #butterfly #garden #insects',
-          'creatorName': '@macro_shots',
-          'creatorAvatar': '',
-        },
-        {
-          'videoUrl':
-              'https://raw.githubusercontent.com/flutter/assets-for-api-docs/master/assets/videos/bee.mp4',
-          'caption': 'High quality bee macro video close-up. #bees #explore',
-          'creatorName': '@bee_keeper',
-          'creatorAvatar': '',
-          'thumbnail': '',
-        },
-        {
-          'videoUrl':
-              'https://raw.githubusercontent.com/flutter/assets-for-api-docs/master/assets/videos/butterfly.mp4',
-          'caption': 'Butterfly flying around flowers. #spring #flowers',
-          'creatorName': '@spring_life',
-          'creatorAvatar': '',
-          'thumbnail': '',
-        },
-      ]);
     }
     return reels;
   }

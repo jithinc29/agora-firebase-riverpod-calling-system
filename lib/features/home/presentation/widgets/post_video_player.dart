@@ -1,5 +1,4 @@
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,8 +6,6 @@ import 'package:video_player/video_player.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
 import 'package:call_project/features/home/presentation/providers/home_providers.dart';
-import 'package:call_project/features/home/presentation/screens/home_screen.dart'
-    show AppColors;
 
 class PostVideoPlayer extends ConsumerStatefulWidget {
   final String videoUrl;

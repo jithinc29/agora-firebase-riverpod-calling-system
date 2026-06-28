@@ -5,13 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_callkit_incoming/flutter_callkit_incoming.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:call_project/features/call/presentation/screens/call_screen.dart';
-import 'package:call_project/features/auth/models/user_model.dart';
 import 'package:call_project/features/notifications/presentation/services/callkit_service.dart';
 import 'package:call_project/core/navigation/navigation_service.dart';
 import 'package:call_project/features/call/data/repositories/call_repository.dart';
-import 'package:call_project/features/call/presentation/controllers/call_controller.dart';
-import 'package:call_project/features/auth/repository/auth_repository.dart';
 
 class CallListener extends ConsumerStatefulWidget {
   final Widget child;
@@ -24,8 +20,6 @@ class CallListener extends ConsumerStatefulWidget {
 class _CallListenerState extends ConsumerState<CallListener> {
   StreamSubscription? _fcmSubscription;
   static final Map<String, int> _handledCalls = {};
-
-  final DateTime _appStartTime = DateTime.now();
 
   @override
   void initState() {
@@ -56,56 +50,6 @@ class _CallListenerState extends ConsumerState<CallListener> {
       return false;
     }
     return true;
-  }
-
-  Future<void> _handleCallAccept(
-    Map<String, dynamic> data,
-    Map<String, dynamic>? extra,
-  ) async {
-    final channelId = extra?['channelId'] ?? data['id'] ?? '';
-    if (channelId.isEmpty) return;
-
-    // Check if we are already showing THIS call screen
-    if (globalActiveCallId == channelId) {
-      debugPrint('Already in call $channelId. Skipping navigation.');
-      return;
-    }
-
-    // Mark as handled for background streams
-    final createdAt = int.tryParse(extra?['createdAt']?.toString() ?? '') ?? 0;
-    _handledCalls[channelId] = createdAt;
-
-    globalActiveCallId = channelId;
-    if (!mounted) return;
-
-    // Ensure the Navigator is ready by waiting for the first frame + small delay
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      // Small extra delay for deep-linking/killed-state stability
-      await Future.delayed(const Duration(milliseconds: 300));
-      if (!mounted) return;
-
-      await Navigator.push(
-        context,
-        PageRouteBuilder(
-          settings: const RouteSettings(name: '/call_screen'),
-          pageBuilder: (_, __, ___) => CallScreen(
-            channelId: channelId,
-            guestUser: UserModel(
-              uid: extra?['callerId'] ?? '',
-              email: '',
-              displayName: data['nameCaller'] ?? 'Unknown',
-            ),
-            isAudioCall: data['type'].toString() == '0',
-            isOutgoing: false,
-          ),
-          transitionDuration: Duration.zero,
-          reverseTransitionDuration: Duration.zero,
-        ),
-      );
-
-      // When returning from the call screen, clear the active call ID
-      setState(() => globalActiveCallId = null);
-    });
   }
 
   void _setupFCM() {

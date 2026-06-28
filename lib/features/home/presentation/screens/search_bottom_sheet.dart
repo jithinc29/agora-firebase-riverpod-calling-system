@@ -1,17 +1,10 @@
+import 'package:call_project/core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:call_project/features/auth/models/user_model.dart';
 import 'package:call_project/features/users/presentation/screens/user_profile_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cached_network_image/cached_network_image.dart';
-
-class AppColors {
-  static const primary = Color(0xFF6366F1);
-  static const secondary = Color(0xFFA855F7);
-  static const background = Color(0xFFF8FAFC);
-  static const textPrimary = Color(0xFF0F172A);
-  static const textSecondary = Color(0xFF64748B);
-}
+import 'package:call_project/core/widgets/custom_avatar.dart';
 
 class SearchBottomSheet extends StatefulWidget {
   final AsyncValue<List<UserModel>> usersAsync;
@@ -150,23 +143,9 @@ class _SearchBottomSheetState extends State<SearchBottomSheet> {
                         horizontal: 16,
                         vertical: 0,
                       ),
-                      leading: CircleAvatar(
+                      leading: CustomAvatar(
                         radius: 22,
-                        backgroundImage:
-                            user.photoUrl != null && user.photoUrl!.isNotEmpty
-                            ? CachedNetworkImageProvider(user.photoUrl!)
-                            : null,
-                        backgroundColor: AppColors.primary.withOpacity(0.1),
-                        child: (user.photoUrl == null || user.photoUrl!.isEmpty)
-                            ? Text(
-                                user.displayName[0].toUpperCase(),
-                                style: const TextStyle(
-                                  color: AppColors.primary,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 14,
-                                ),
-                              )
-                            : null,
+                        photoUrl: user.photoUrl,
                       ),
                       title: Text(
                         user.displayName,

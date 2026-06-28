@@ -9,7 +9,6 @@ import 'package:call_project/features/call/domain/entities/call_entity.dart';
 import 'package:call_project/core/config/agora_config.dart';
 import 'package:call_project/features/notifications/models/notification_model.dart';
 import 'package:uuid/uuid.dart';
-import 'package:call_project/features/auth/models/user_model.dart';
 
 part 'call_repository.g.dart';
 

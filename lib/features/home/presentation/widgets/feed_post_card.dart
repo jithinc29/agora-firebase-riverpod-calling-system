@@ -1,3 +1,4 @@
+import 'package:call_project/core/theme/app_colors.dart';
 import 'package:call_project/core/utils/time_utils.dart';
 import 'package:call_project/features/home/presentation/widgets/post_video_player.dart';
 import 'package:flutter/material.dart';
@@ -7,10 +8,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:call_project/features/auth/models/user_model.dart';
 import 'package:call_project/core/services/notification_service.dart';
-import 'package:call_project/features/home/presentation/screens/home_screen.dart'
-    show AppColors;
 import 'package:flutter/services.dart';
 import 'package:call_project/core/providers/refresh_provider.dart';
+import 'package:call_project/core/widgets/custom_avatar.dart';
 
 class FeedPostCard extends ConsumerStatefulWidget {
   final VoidCallback? onPostDeleted;
@@ -18,12 +18,12 @@ class FeedPostCard extends ConsumerStatefulWidget {
   final DocumentSnapshot postDoc;
   final UserModel currentUser;
   const FeedPostCard({
-    Key? key,
+    super.key,
     required this.postDoc,
     required this.currentUser,
     this.onPostDeleted,
     this.onPostHidden,
-  }) : super(key: key);
+  });
   @override
   ConsumerState<FeedPostCard> createState() => _FeedPostCardState();
 }
@@ -87,19 +87,10 @@ class _FeedPostCardState extends ConsumerState<FeedPostCard> {
           // Author Row
           Row(
             children: [
-              CircleAvatar(
-                radius: 16,
-                backgroundImage: photoUrl != null
-                    ? CachedNetworkImageProvider(photoUrl)
-                    : null,
-                child: photoUrl == null
-                    ? Text(
-                        displayName.isNotEmpty
-                            ? displayName[0].toUpperCase()
-                            : '?',
-                      )
-                    : null,
-              ),
+              CustomAvatar(
+radius: 16,
+photoUrl: photoUrl,
+),
               const SizedBox(width: 10),
               Expanded(
                 child: Column(
@@ -383,6 +374,7 @@ class _FeedPostCardState extends ConsumerState<FeedPostCard> {
                     final bool isHidden = data['isHidden'] == true;
                     await postDoc.reference.update({'isHidden': !isHidden});
                     ref.read(mediaRefreshProvider.notifier).state++;
+                    if (widget.onPostHidden != null) widget.onPostHidden!();
                     if (outerContext.mounted) {
                       TopNotificationService.showSuccess(
                         outerContext,
@@ -426,79 +418,143 @@ class _FeedPostCardState extends ConsumerState<FeedPostCard> {
     // 'context' here is the outer (feed list) context — always valid.
     showDialog(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text(
-          'Delete Post',
-          style: TextStyle(
-            color: AppColors.textPrimary,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        content: const Text(
-          'Are you sure you want to delete this post permanently? This action cannot be undone.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text(
-              'Cancel',
-              style: TextStyle(color: AppColors.textSecondary),
-            ),
-          ),
-          TextButton(
-            onPressed: () async {
-              Navigator.pop(dialogContext);
-              try {
-                final data = postDoc.data() as Map<String, dynamic>? ?? {};
-                final mediaUrl = data['mediaUrl'] as String?;
-                final videoUrl = data['videoUrl'] as String?;
-                final thumbnail = data['thumbnail'] as String?;
-                final thumbnailUrl = data['thumbnailUrl'] as String?;
+      builder: (dialogContext) {
+        bool isDeleting = false;
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return Dialog(
+              backgroundColor: AppColors.background,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+                    child: Column(
+                      children: [
+                        Text(
+                          'Delete Post',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                        SizedBox(height: 12),
+                        Text(
+                          'Are you sure you want to delete this post permanently? This action cannot be undone.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Divider(height: 1, color: Colors.grey.shade300),
+                  InkWell(
+                    onTap: isDeleting
+                        ? null
+                        : () async {
+                            setState(() {
+                              isDeleting = true;
+                            });
+                            try {
+                              final data = postDoc.data() as Map<String, dynamic>? ?? {};
+                              final mediaUrl = data['mediaUrl'] as String?;
+                              final videoUrl = data['videoUrl'] as String?;
+                              final thumbnail = data['thumbnail'] as String?;
+                              final thumbnailUrl = data['thumbnailUrl'] as String?;
 
-                final urlsToDelete = [
-                  mediaUrl,
-                  videoUrl,
-                  thumbnail,
-                  thumbnailUrl,
-                ].where((url) => url != null && url.isNotEmpty).toList();
+                              final urlsToDelete = [
+                                mediaUrl,
+                                videoUrl,
+                                thumbnail,
+                                thumbnailUrl,
+                              ].where((url) => url != null && url.isNotEmpty).toList();
 
-                for (final url in urlsToDelete) {
-                  try {
-                    final storageRef = FirebaseStorage.instance.refFromURL(
-                      url!,
-                    );
-                    await storageRef.delete();
-                  } catch (e) {
-                    debugPrint('Failed to delete media from storage: $e');
-                  }
-                }
-                await postDoc.reference.delete();
-                if (widget.onPostDeleted != null) {
-                  widget.onPostDeleted!();
-                }
-                ref.read(mediaRefreshProvider.notifier).state++;
-                if (context.mounted) {
-                  TopNotificationService.showSuccess(
-                    context,
-                    'Post deleted successfully',
-                  );
-                }
-              } catch (e) {
-                if (context.mounted) {
-                  TopNotificationService.showError(
-                    context,
-                    'Failed to delete post: $e',
-                  );
-                }
-              }
-            },
-            child: const Text(
-              'Delete',
-              style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
-            ),
-          ),
-        ],
-      ),
+                              for (final url in urlsToDelete) {
+                                try {
+                                  final storageRef = FirebaseStorage.instance.refFromURL(
+                                    url!,
+                                  );
+                                  await storageRef.delete();
+                                } catch (e) {
+                                  debugPrint('Failed to delete media from storage: $e');
+                                }
+                              }
+                              await postDoc.reference.delete();
+                              if (widget.onPostDeleted != null) {
+                                widget.onPostDeleted!();
+                              }
+                              ref.read(mediaRefreshProvider.notifier).state++;
+                              if (context.mounted) {
+                                Navigator.pop(dialogContext);
+                                TopNotificationService.showSuccess(
+                                  context,
+                                  'Post deleted successfully',
+                                );
+                              }
+                            } catch (e) {
+                              if (context.mounted) {
+                                setState(() {
+                                  isDeleting = false;
+                                });
+                                TopNotificationService.showError(
+                                  context,
+                                  'Failed to delete post: $e',
+                                );
+                              }
+                            }
+                          },
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      alignment: Alignment.center,
+                      child: isDeleting
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: AppColors.error,
+                              ),
+                            )
+                          : const Text(
+                              'Delete',
+                              style: TextStyle(
+                                color: AppColors.error,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15,
+                              ),
+                            ),
+                    ),
+                  ),
+                  Divider(height: 1, color: Colors.grey.shade300),
+                  InkWell(
+                    onTap: isDeleting ? null : () => Navigator.pop(dialogContext),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      alignment: Alignment.center,
+                      child: Text(
+                        'Cancel',
+                        style: TextStyle(
+                          color: isDeleting ? Colors.grey : AppColors.textPrimary,
+                          fontSize: 15,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
@@ -820,23 +876,10 @@ class _FeedPostCardState extends ConsumerState<FeedPostCard> {
                       ),
                       child: Row(
                         children: [
-                          CircleAvatar(
-                            radius: 14,
-                            backgroundImage: currentUser.photoUrl != null
-                                ? CachedNetworkImageProvider(
-                                    currentUser.photoUrl!,
-                                  )
-                                : null,
-                            child: currentUser.photoUrl == null
-                                ? Text(
-                                    currentUser.displayName.isNotEmpty
-                                        ? currentUser.displayName[0]
-                                              .toUpperCase()
-                                        : '?',
-                                    style: const TextStyle(fontSize: 10),
-                                  )
-                                : null,
-                          ),
+                          CustomAvatar(
+radius: 14,
+photoUrl: currentUser.photoUrl,
+),
                           const SizedBox(width: 8),
                           Expanded(
                             child: TextField(
@@ -1045,20 +1088,10 @@ class _FeedPostCardState extends ConsumerState<FeedPostCard> {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            CircleAvatar(
-              radius: isReply ? 12 : 14,
-              backgroundImage: photoUrl != null
-                  ? CachedNetworkImageProvider(photoUrl)
-                  : null,
-              child: photoUrl == null
-                  ? Text(
-                      displayName.isNotEmpty
-                          ? displayName[0].toUpperCase()
-                          : '?',
-                      style: TextStyle(fontSize: isReply ? 8 : 10),
-                    )
-                  : null,
-            ),
+            CustomAvatar(
+radius: isReply ? 12 : 14,
+photoUrl: photoUrl,
+),
             const SizedBox(width: 8),
             Expanded(
               child: Column(
@@ -1077,7 +1110,7 @@ class _FeedPostCardState extends ConsumerState<FeedPostCard> {
                         ),
                         if (match != null) ...[
                           TextSpan(
-                            text: match.group(1)! + ' ',
+                            text: '${match.group(1)!} ',
                             style: const TextStyle(color: Colors.blue),
                           ),
                           TextSpan(text: text.substring(match.end)),

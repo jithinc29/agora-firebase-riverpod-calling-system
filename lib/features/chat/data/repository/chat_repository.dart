@@ -87,6 +87,7 @@ class ChatRepository {
             }),
           )
           .timeout(const Duration(seconds: 10))
+          // ignore: invalid_return_type_for_catch_error
           .catchError((e) => null);
     }
 

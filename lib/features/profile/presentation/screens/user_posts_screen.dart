@@ -1,10 +1,10 @@
+import 'package:call_project/core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:call_project/features/auth/models/user_model.dart';
 import 'package:call_project/features/home/presentation/widgets/feed_post_card.dart';
-import 'package:call_project/features/home/presentation/screens/home_screen.dart'
-    show AppColors;
+import 'package:call_project/features/profile/controllers/user_posts_controller.dart';
 
 class UserPostsScreen extends ConsumerStatefulWidget {
   final UserModel currentUser;
@@ -26,25 +26,21 @@ class UserPostsScreen extends ConsumerStatefulWidget {
 
 class _UserPostsScreenState extends ConsumerState<UserPostsScreen> {
   final ScrollController _scrollController = ScrollController();
-  List<DocumentSnapshot> _posts = [];
   bool _isLoading = true;
   String? _error;
 
   @override
   void initState() {
     super.initState();
-    _loadPosts();
-  }
-
-  Future<void> _loadPosts() async {
-    setState(() {
-      if (widget.initialIndex > 0 &&
-          widget.initialIndex < widget.posts.length) {
-        _posts = widget.posts.sublist(widget.initialIndex);
-      } else {
-        _posts = List.from(widget.posts);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref
+          .read(userPostsProvider.notifier)
+          .init(widget.posts, widget.initialIndex);
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
       }
-      _isLoading = false;
     });
   }
 
@@ -75,30 +71,34 @@ class _UserPostsScreenState extends ConsumerState<UserPostsScreen> {
   }
 
   Widget _buildBody() {
+    final posts = ref.watch(userPostsProvider);
+
     if (_isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
     if (_error != null) {
       return Center(child: Text('Error: $_error'));
     }
-    if (_posts.isEmpty) {
+
+    if (posts.isEmpty) {
       return const Center(child: Text('No posts found.'));
     }
 
     return ListView.builder(
       controller: _scrollController,
-      itemCount: _posts.length,
+      itemCount: posts.length,
       padding: const EdgeInsets.symmetric(vertical: 8),
       itemBuilder: (context, index) {
-        final doc = _posts[index];
+        final doc = posts[index];
         return FeedPostCard(
           key: ValueKey(doc.id),
           postDoc: doc,
           currentUser: widget.currentUser,
           onPostDeleted: () {
-            setState(() {
-              _posts.removeWhere((p) => p.id == doc.id);
-            });
+            ref.read(userPostsProvider.notifier).removePost(doc.id);
+          },
+          onPostHidden: () {
+            ref.read(userPostsProvider.notifier).removePost(doc.id);
           },
         );
       },
